@@ -4,34 +4,30 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "41473bd5cd16baed5373bf84701e7828",
+    "content-hash": "f6cf83beec4603c96bb51daae2472b52",
     "packages": [
         {
-            "name": "websyspro/entity",
+            "name": "websyspro/connection",
             "version": "1.0.3",
             "source": {
                 "type": "git",
-                "url": "https://github.com/websyspro/entity.git",
-                "reference": "27c2acd4c222e240a9d97ccfbf155d112d88af7d"
+                "url": "https://github.com/websyspro/connection.git",
+                "reference": "1f8b82ac49910d28552e4d1ca07ff2095aa01cc7"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/websyspro/entity/zipball/27c2acd4c222e240a9d97ccfbf155d112d88af7d",
-                "reference": "27c2acd4c222e240a9d97ccfbf155d112d88af7d",
+                "url": "https://api.github.com/repos/websyspro/connection/zipball/1f8b82ac49910d28552e4d1ca07ff2095aa01cc7",
+                "reference": "1f8b82ac49910d28552e4d1ca07ff2095aa01cc7",
                 "shasum": ""
             },
             "require": {
                 "websyspro/package": "^1.0",
                 "websyspro/utils": "^1.0"
             },
-            "bin": [
-                "bin/server-restart",
-                "bin/browser-reload"
-            ],
             "type": "library",
             "autoload": {
                 "psr-4": {
-                    "Websyspro\\Entity\\": "src/"
+                    "Websyspro\\Connection\\": "src/"
                 }
             },
             "notification-url": "https://packagist.org/downloads/",
@@ -44,12 +40,53 @@
                     "email": "websyspro.services@gmail.com"
                 }
             ],
-            "description": "Set of features in PHP for creating entitys for database",
+            "description": "Connection to MySQL, PostgreSQL, and SQL Server databases",
+            "support": {
+                "issues": "https://github.com/websyspro/connection/issues",
+                "source": "https://github.com/websyspro/connection/tree/1.0.3"
+            },
+            "time": "2026-09-17T20:35:51+00:00"
+        },
+        {
+            "name": "websyspro/entity",
+            "version": "1.0.4",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/websyspro/entity.git",
+                "reference": "81e1cf62bde6a47481e86e0af02471b0b1dd07b5"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/websyspro/entity/zipball/81e1cf62bde6a47481e86e0af02471b0b1dd07b5",
+                "reference": "81e1cf62bde6a47481e86e0af02471b0b1dd07b5",
+                "shasum": ""
+            },
+            "require": {
+                "websyspro/package": "^1.0",
+                "websyspro/utils": "^1.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Websyspro\\Server\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "websyspro",
+                    "email": "websyspro.services@gmail.com"
+                }
+            ],
+            "description": "Library for managing controllers and services",
             "support": {
                 "issues": "https://github.com/websyspro/entity/issues",
-                "source": "https://github.com/websyspro/entity/tree/1.0.3"
+                "source": "https://github.com/websyspro/entity/tree/1.0.4"
             },
-            "time": "2026-09-17T02:04:45+00:00"
+            "time": "2026-09-17T20:36:46+00:00"
         },
         {
             "name": "websyspro/logger",

@@ -2,14 +2,13 @@
 
 namespace Websyspro\ArrowToSql;
 
-use Websyspro\Server\Decorators\Entity\Types\ColumnDate;
-use Websyspro\Server\Decorators\Entity\Types\ColumnDatetime;
-use Websyspro\Server\Decorators\Entity\Types\ColumnDecimal;
-use Websyspro\Server\Decorators\Entity\Types\ColumnVarchar;
-use Websyspro\Server\Decorators\Entity\Types\ColumnEnum;
-use Websyspro\Server\Decorators\Entity\Types\ColumnLongText;
-use Websyspro\Server\Decorators\Entity\Types\ColumnNumber;
-use Websyspro\Server\Decorators\Entity\Types\ColumnFlag;
+use Websyspro\ArrowToSql\Types\ColumnText;
+use Websyspro\Entity\Types\ColumnDate;
+use Websyspro\Entity\Types\ColumnDatetime;
+use Websyspro\Entity\Types\ColumnDecimal;
+use Websyspro\Entity\Types\ColumnInt;
+use Websyspro\Entity\Types\ColumnLongText;
+use Websyspro\Entity\Types\ColumnFlag;
 
 use function is_string;
 use function is_bool;
@@ -32,13 +31,11 @@ class ExpressionType
       return $this->encodeDatetime( $value );
     } else if( $type === basename( ColumnDecimal::class )){
       return $this->encodeDecimal( $value );
-    } else if( $type === basename( ColumnVarchar::class )){
+    } else if( $type === basename( ColumnText::class )){
       return $this->encodeText( $value );
-    } else if( $type === basename( ColumnEnum::class )){
+    }  else if( $type === basename( ColumnLongText::class )){
       return $this->encodeText( $value );
-    } else if( $type === basename( ColumnLongText::class )){
-      return $this->encodeText( $value );
-    } else if( $type === basename( ColumnNumber::class )){
+    } else if( $type === basename( ColumnInt::class )){
       return $this->encodeNumber( $value );
     } else if( $type === basename( ColumnFlag::class )){
       return $this->encodeFlag( $value );

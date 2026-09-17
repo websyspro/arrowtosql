@@ -3,6 +3,7 @@
 namespace Websyspro\ArrowToSql;
 
 use ReflectionClass;
+use Websyspro\Entity\Decorators\Entity;
 
 class EntityStructure
 {
