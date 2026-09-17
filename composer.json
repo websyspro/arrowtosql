@@ -1,0 +1,32 @@
+{
+  "name": "websyspro/arrowtosql",
+  "version": "1.0.1",
+  "description": "Convert Arrow FN into SQL queries",
+  "minimum-stability": "dev",
+  "prefer-stable": true,
+  "license": "MIT",
+  "type": "library",
+  "autoload": {
+    "psr-4": {
+      "Websyspro\\DevTools\\": "src/"
+    }
+  },
+  "bin": [
+    "bin/server-restart",
+    "bin/browser-reload"
+  ],
+  "scripts": {
+    "publish": "php vendor/bin/publish"
+  },
+  "authors": [
+    {
+      "name": "websyspro",
+      "email": "websyspro.services@gmail.com"
+    }
+  ],
+  "require": {
+    "websyspro/utils": "^1.0",
+    "websyspro/package": "^1.0",
+    "websyspro/logger": "^1.0"
+  }
+}
