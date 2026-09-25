@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "cb63b7e79938939c5bdd12b7220bd1c6",
+    "content-hash": "a83cbb2b848057d279f652f938ba0f2c",
     "packages": [
         {
             "name": "websyspro/connection",
@@ -49,16 +49,16 @@
         },
         {
             "name": "websyspro/entity",
-            "version": "1.0.25",
+            "version": "1.0.43",
             "source": {
                 "type": "git",
                 "url": "https://github.com/websyspro/entity.git",
-                "reference": "7a9779358871b6107300a02abd28a4d9a8e7be47"
+                "reference": "9b543c69edc7decbbd4f691d2239be0cf4db18f9"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/websyspro/entity/zipball/7a9779358871b6107300a02abd28a4d9a8e7be47",
-                "reference": "7a9779358871b6107300a02abd28a4d9a8e7be47",
+                "url": "https://api.github.com/repos/websyspro/entity/zipball/9b543c69edc7decbbd4f691d2239be0cf4db18f9",
+                "reference": "9b543c69edc7decbbd4f691d2239be0cf4db18f9",
                 "shasum": ""
             },
             "require": {
@@ -85,22 +85,22 @@
             "description": "Library for managing controllers and services",
             "support": {
                 "issues": "https://github.com/websyspro/entity/issues",
-                "source": "https://github.com/websyspro/entity/tree/1.0.25"
+                "source": "https://github.com/websyspro/entity/tree/1.0.43"
             },
-            "time": "2026-09-20T23:34:36+00:00"
+            "time": "2026-09-23T23:54:54+00:00"
         },
         {
             "name": "websyspro/logger",
-            "version": "1.0.39",
+            "version": "1.0.40",
             "source": {
                 "type": "git",
                 "url": "https://github.com/websyspro/logger.git",
-                "reference": "6b269a6269043eb60a188056490556153bf77bdb"
+                "reference": "ded84a71ddf189b9d70dc21cb68eff7090b2632c"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/websyspro/logger/zipball/6b269a6269043eb60a188056490556153bf77bdb",
-                "reference": "6b269a6269043eb60a188056490556153bf77bdb",
+                "url": "https://api.github.com/repos/websyspro/logger/zipball/ded84a71ddf189b9d70dc21cb68eff7090b2632c",
+                "reference": "ded84a71ddf189b9d70dc21cb68eff7090b2632c",
                 "shasum": ""
             },
             "require": {
@@ -128,22 +128,22 @@
             "description": "Library for logs in server api",
             "support": {
                 "issues": "https://github.com/websyspro/logger/issues",
-                "source": "https://github.com/websyspro/logger/tree/1.0.39"
+                "source": "https://github.com/websyspro/logger/tree/1.0.40"
             },
-            "time": "2026-09-01T21:43:04+00:00"
+            "time": "2026-09-25T20:10:15+00:00"
         },
         {
             "name": "websyspro/package",
-            "version": "1.0.84",
+            "version": "1.0.85",
             "source": {
                 "type": "git",
                 "url": "https://github.com/websyspro/package.git",
-                "reference": "9bfc28d32a20e84a9b663c74c50ac093a7d712ba"
+                "reference": "a1e58ae212aac2ac6432aa8c1341240b321ce893"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/websyspro/package/zipball/9bfc28d32a20e84a9b663c74c50ac093a7d712ba",
-                "reference": "9bfc28d32a20e84a9b663c74c50ac093a7d712ba",
+                "url": "https://api.github.com/repos/websyspro/package/zipball/a1e58ae212aac2ac6432aa8c1341240b321ce893",
+                "reference": "a1e58ae212aac2ac6432aa8c1341240b321ce893",
                 "shasum": ""
             },
             "bin": [
@@ -168,22 +168,22 @@
             "description": "Version Management",
             "support": {
                 "issues": "https://github.com/websyspro/package/issues",
-                "source": "https://github.com/websyspro/package/tree/1.0.84"
+                "source": "https://github.com/websyspro/package/tree/1.0.85"
             },
-            "time": "2026-09-18T13:34:52+00:00"
+            "time": "2026-09-25T20:10:44+00:00"
         },
         {
             "name": "websyspro/utils",
-            "version": "1.0.13",
+            "version": "1.0.14",
             "source": {
                 "type": "git",
                 "url": "https://github.com/websyspro/utils.git",
-                "reference": "b76a59b3d7960a150652f049ac8d92925db8a032"
+                "reference": "5ef71c076bd7cad021a928eef79fb854b7e3f858"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/websyspro/utils/zipball/b76a59b3d7960a150652f049ac8d92925db8a032",
-                "reference": "b76a59b3d7960a150652f049ac8d92925db8a032",
+                "url": "https://api.github.com/repos/websyspro/utils/zipball/5ef71c076bd7cad021a928eef79fb854b7e3f858",
+                "reference": "5ef71c076bd7cad021a928eef79fb854b7e3f858",
                 "shasum": ""
             },
             "require": {
@@ -208,9 +208,9 @@
             "description": "Set of features for front-end and back-end development",
             "support": {
                 "issues": "https://github.com/websyspro/utils/issues",
-                "source": "https://github.com/websyspro/utils/tree/1.0.13"
+                "source": "https://github.com/websyspro/utils/tree/1.0.14"
             },
-            "time": "2026-08-14T18:48:06+00:00"
+            "time": "2026-09-25T20:11:56+00:00"
         }
     ],
     "packages-dev": [],
