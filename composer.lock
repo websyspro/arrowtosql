@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "c51f60fdd41bfe305a50db6d8eafb166",
+    "content-hash": "378d854b39093e3035e9d055b7b68161",
     "packages": [
         {
             "name": "websyspro/connection",
@@ -49,16 +49,16 @@
         },
         {
             "name": "websyspro/entity",
-            "version": "1.0.44",
+            "version": "1.0.45",
             "source": {
                 "type": "git",
                 "url": "https://github.com/websyspro/entity.git",
-                "reference": "d739879e1eb39bc3a04bbac9c98baafd1993a5af"
+                "reference": "4b073843571a90022be795a493712cb9594ec070"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/websyspro/entity/zipball/d739879e1eb39bc3a04bbac9c98baafd1993a5af",
-                "reference": "d739879e1eb39bc3a04bbac9c98baafd1993a5af",
+                "url": "https://api.github.com/repos/websyspro/entity/zipball/4b073843571a90022be795a493712cb9594ec070",
+                "reference": "4b073843571a90022be795a493712cb9594ec070",
                 "shasum": ""
             },
             "require": {
@@ -85,9 +85,9 @@
             "description": "Library for managing controllers and services",
             "support": {
                 "issues": "https://github.com/websyspro/entity/issues",
-                "source": "https://github.com/websyspro/entity/tree/1.0.44"
+                "source": "https://github.com/websyspro/entity/tree/1.0.45"
             },
-            "time": "2026-09-25T20:14:56+00:00"
+            "time": "2026-10-01T23:49:06+00:00"
         },
         {
             "name": "websyspro/logger",
