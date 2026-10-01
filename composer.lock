@@ -4,20 +4,20 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "a83cbb2b848057d279f652f938ba0f2c",
+    "content-hash": "c51f60fdd41bfe305a50db6d8eafb166",
     "packages": [
         {
             "name": "websyspro/connection",
-            "version": "1.0.7",
+            "version": "1.0.9",
             "source": {
                 "type": "git",
                 "url": "https://github.com/websyspro/connection.git",
-                "reference": "a0b1c1bcdc35f0dfaa7e511d635e8c3e24d92582"
+                "reference": "c111198883245bd19056eceaeb8fa40daa3c281e"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/websyspro/connection/zipball/a0b1c1bcdc35f0dfaa7e511d635e8c3e24d92582",
-                "reference": "a0b1c1bcdc35f0dfaa7e511d635e8c3e24d92582",
+                "url": "https://api.github.com/repos/websyspro/connection/zipball/c111198883245bd19056eceaeb8fa40daa3c281e",
+                "reference": "c111198883245bd19056eceaeb8fa40daa3c281e",
                 "shasum": ""
             },
             "require": {
@@ -43,22 +43,22 @@
             "description": "Connection to MySQL, PostgreSQL, and SQL Server databases",
             "support": {
                 "issues": "https://github.com/websyspro/connection/issues",
-                "source": "https://github.com/websyspro/connection/tree/1.0.7"
+                "source": "https://github.com/websyspro/connection/tree/1.0.9"
             },
-            "time": "2026-09-19T14:45:43+00:00"
+            "time": "2026-09-26T12:49:13+00:00"
         },
         {
             "name": "websyspro/entity",
-            "version": "1.0.43",
+            "version": "1.0.44",
             "source": {
                 "type": "git",
                 "url": "https://github.com/websyspro/entity.git",
-                "reference": "9b543c69edc7decbbd4f691d2239be0cf4db18f9"
+                "reference": "d739879e1eb39bc3a04bbac9c98baafd1993a5af"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/websyspro/entity/zipball/9b543c69edc7decbbd4f691d2239be0cf4db18f9",
-                "reference": "9b543c69edc7decbbd4f691d2239be0cf4db18f9",
+                "url": "https://api.github.com/repos/websyspro/entity/zipball/d739879e1eb39bc3a04bbac9c98baafd1993a5af",
+                "reference": "d739879e1eb39bc3a04bbac9c98baafd1993a5af",
                 "shasum": ""
             },
             "require": {
@@ -85,9 +85,9 @@
             "description": "Library for managing controllers and services",
             "support": {
                 "issues": "https://github.com/websyspro/entity/issues",
-                "source": "https://github.com/websyspro/entity/tree/1.0.43"
+                "source": "https://github.com/websyspro/entity/tree/1.0.44"
             },
-            "time": "2026-09-23T23:54:54+00:00"
+            "time": "2026-09-25T20:14:56+00:00"
         },
         {
             "name": "websyspro/logger",
