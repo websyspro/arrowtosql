@@ -2,9 +2,6 @@
 
 namespace Websyspro\ArrowToSql;
 
-use Closure;
-use PhpToken;
-use ReflectionFunction;
 use Websyspro\ArrowToSql\Enums\LogicalType;
 use Websyspro\ArrowToSql\Enums\MethodList;
 use Websyspro\ArrowToSql\Enums\MethodType;
@@ -31,12 +28,16 @@ use Websyspro\ArrowToSql\Expressions\ExpSubQuery;
 use Websyspro\ArrowToSql\Expressions\ExpToken;
 use Websyspro\ArrowToSql\Expressions\ExpUnary;
 use Websyspro\ArrowToSql\Expressions\ExpValue;
+use Websyspro\Connection\Database;
 use Websyspro\Connection\Enums\DriverType;
 use Websyspro\Entity\Types\ColumnFlag;
 use function defined;
 use function sprintf;
 use function count;
 use function in_array;
+use ReflectionFunction;
+use Closure;
+use PhpToken;
 
 defined( 'T_START_PARENTESES' ) || define( 'T_START_PARENTESES', 40 );
 defined( 'T_END_PARENTESES' ) || define( 'T_END_PARENTESES', 41 );
@@ -868,7 +869,7 @@ extends SqlUtils
     $this->tokens = $this->resolveHierarchy( $this->resolveScopesAndTokens());
     $this->tokens = $this->resolveSemantics( $this->tokens );
 
-    $this->scriptDialect = match( Connection::driver()){
+    $this->scriptDialect = match( Database::driver()){
       DriverType::MySql => new MySqlScriptDialect( $this->expressionType, $this->statics ),
       DriverType::Sqlite => new SqlLiteScriptDialect( $this->expressionType, $this->statics ),
       DriverType::SqlServer => new SqlServerScriptDialect( $this->expressionType, $this->statics ),
@@ -1027,7 +1028,7 @@ extends SqlUtils
       $this->resolveScopesAndTokens()
     );
 
-    $this->scriptDialect = match( Connection::driver()){
+    $this->scriptDialect = match( Database::driver()){
       DriverType::MySql => new MySqlScriptDialect( $this->expressionType, $this->statics ),
       DriverType::Sqlite => new SqlLiteScriptDialect( $this->expressionType, $this->statics ),
       DriverType::SqlServer => new SqlServerScriptDialect( $this->expressionType, $this->statics ),

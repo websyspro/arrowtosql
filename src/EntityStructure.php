@@ -2,8 +2,16 @@
 
 namespace Websyspro\ArrowToSql;
 
-use ReflectionClass;
+use Websyspro\Entity\Decorators\Column;
 use Websyspro\Entity\Decorators\Entity;
+use Websyspro\Entity\Decorators\ForeignKey;
+use Websyspro\Entity\Decorators\Index;
+use Websyspro\Entity\Decorators\PrimaryKey;
+use Websyspro\Entity\Decorators\Unique;
+use Websyspro\Entity\Types\ColumnAbstract;
+use ReflectionNamedType;
+use RuntimeException;
+use ReflectionClass;
 
 class EntityStructure
 {
@@ -15,12 +23,14 @@ class EntityStructure
   public readonly array $uniques;
   public readonly array $foreigns;
 
-  public static function of(string $entityClass): static
-  {
-      if (!isset(static::$cache[$entityClass])) {
-          static::$cache[$entityClass] = new static($entityClass);
-      }
-      return static::$cache[$entityClass];
+  public static function of(
+    string $entityClass
+  ): static {
+    if( !isset( static::$cache[ $entityClass ])){
+      static::$cache[ $entityClass ] = new static( $entityClass );
+    }
+
+    return static::$cache[ $entityClass ];
   }
 
   public function __construct(string $entityClass)
@@ -29,10 +39,10 @@ class EntityStructure
       $entityAttr = $reflection->getAttributes(Entity::class)[0] ?? null;
 
       if ($entityAttr === null) {
-        throw new \RuntimeException("Classe {$entityClass} não possui o atributo #[Entity]");
+        throw new RuntimeException("Classe {$entityClass} não possui o atributo #[Entity]");
       }
 
-      $this->table = $entityAttr->newInstance()->table;
+      $this->table = $entityAttr->newInstance()->alias;
 
       // Coleta propriedades da hierarquia completa (inclui BaseEntity)
       $properties = $reflection->getProperties();
@@ -54,7 +64,7 @@ class EntityStructure
           $type     = $property->getType();
           $typeName = $type instanceof ReflectionNamedType ? ltrim($type->getName(), '?') : null;
 
-          if ($typeName === null || !is_subclass_of($typeName, ColumnType::class)) {
+          if ($typeName === null || !is_subclass_of($typeName, ColumnAbstract::class)) {
               continue;
           }
 
@@ -70,7 +80,7 @@ class EntityStructure
           $isPK          = !empty($property->getAttributes(PrimaryKey::class));
           $isIndex       = !empty($property->getAttributes(Index::class));
           $isUnique      = !empty($property->getAttributes(Unique::class));
-          $foreignAttr   = $property->getAttributes(Foreign::class)[0] ?? null;
+          $foreignAttr   = $property->getAttributes(ForeignKey::class)[0] ?? null;
           $foreignEntity = null;
           $foreignColumn = null;
 
@@ -83,7 +93,7 @@ class EntityStructure
           $col = new EntityColumn(
               property:      $propName,
               column:        $colName,
-              type:          (new \ReflectionClass($typeName))->getShortName(),
+              type:          (new ReflectionClass($typeName))->getShortName(),
               isPrimaryKey:  $isPK,
               isIndex:       $isIndex,
               isUnique:      $isUnique,
