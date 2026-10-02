@@ -80,6 +80,24 @@ class Repository
     return $this;
   }
 
+  public function create(
+    Closure $closure
+  ): mixed {
+    return [];
+  }
+
+  public function update(
+    Closure $closure
+  ): mixed {
+    return [];
+  }  
+
+  public function delete(
+    Closure $closure
+  ): mixed {
+    return [];
+  }  
+
   public function row(
   ): mixed {
     return [];
