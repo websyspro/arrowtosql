@@ -5,6 +5,7 @@ namespace Websyspro\ArrowToSql;
 use Websyspro\ArrowToSql\Interfaces\ColumnResult;
 use Websyspro\ArrowToSql\Interfaces\WhereResult;
 use Closure;
+use Websyspro\Utils\Collection;
 
 class Repository
 {
@@ -18,6 +19,12 @@ class Repository
   public function __construct(
     private readonly string $entity
   ){}
+
+  private function arrowToSql(
+    Closure $closure
+  ): ArrowToSql {
+    return new ArrowToSQL($closure);
+  }  
 
   public function where(
     Closure $closure
@@ -71,11 +78,15 @@ class Repository
       ->getColumnResult();
     
     return $this;
-  }  
+  }
+
+  public function row(
+  ): mixed {
+    return [];
+  }
   
-  private function arrowToSql(
-    Closure $closure
-  ): ArrowToSql {
-    return new ArrowToSQL($closure);
+  public function rows(
+  ): Collection {
+    return new Collection();
   }
 }
