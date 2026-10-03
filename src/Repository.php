@@ -16,6 +16,8 @@ class Repository
   private ColumnResult $orderByAscResult;
   private ColumnResult $orderByDescResult;
 
+  private ColumnResult $createResult;
+
   public function __construct(
     private readonly string $entity
   ){}
@@ -83,7 +85,10 @@ class Repository
   public function create(
     Closure $closure
   ): mixed {
-    return [];
+    $this->createResult = $this->arrowToSql($closure)
+      ->getAppendResult();
+
+    return $this;      
   }
 
   public function update(

@@ -68,7 +68,19 @@ $schemaManager = match( Database::driver() ){
   )
 };   
 
-$schemaManager->asyncEntity();
+// $schemaManager->asyncEntity();
+
+
+$repository = new Repository(UserEntity::class);
+$repository->create( 
+  fn( UserEntity $u ) => [
+    $u->name => "EMERSON",
+    $u->email => "cpd.emersonts@gmail.com"
+  ]
+);
+
+print_r($repository);
+
 exit();
 
 $email = "cpd.emersontsa@gmail.com";
