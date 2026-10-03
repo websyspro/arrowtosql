@@ -1,19 +1,19 @@
 <?php
 
-use Websyspro\ArrowToSql\Repository;
-use Websyspro\Entity\Schemas\SqlLiteEntityStructure;
-use Websyspro\Entity\Schemas\SqlLiteEntityStructurePersisteds;
-use Websyspro\Entity\Schemas\SqlLiteSchemaManager;
-use Websyspro\Test\Entities\UserEntity;
 use Websyspro\Connection\Database;
+use Websyspro\ArrowToSql\Repository;
+use Websyspro\Test\Entities\UserEntity;
 use Websyspro\Connection\Enums\DriverType;
-use Websyspro\Entity\Schemas\PostgresEntityStructurePersisteds;
+use Websyspro\Entity\Schemas\SqLiteEntityStructure;
+use Websyspro\Entity\Schemas\SqLiteEntityStructurePersisteds;
+use Websyspro\Entity\Schemas\SqLiteSchemaManager;
 use Websyspro\Entity\Schemas\SqlServerEntityStructure;
 use Websyspro\Entity\Schemas\SqlServerEntityStructurePersisteds;
 use Websyspro\Entity\Schemas\SqlServerSchemaManager;
 use Websyspro\Entity\Schemas\MySqlEntityStructure;
 use Websyspro\Entity\Schemas\MySqlEntityStructurePersisteds;
 use Websyspro\Entity\Schemas\MySqlSchemaManager;
+use Websyspro\Entity\Schemas\PostgresEntityStructurePersisteds;
 use Websyspro\Entity\Schemas\PostgresEntityStructure;
 use Websyspro\Entity\Schemas\PostgresSchemaManager;
 
@@ -54,13 +54,13 @@ $schemaManager = match( Database::driver() ){
       )
     ) 
   ),
-  DriverType::Sqlite => new SqlLiteSchemaManager(
-    new SqlLiteEntityStructure(
+  DriverType::Sqlite => new SqLiteSchemaManager(
+    new SqLiteEntityStructure(
       new ReflectionClass(
         UserEntity::class
       )
     ),
-    new SqlLiteEntityStructurePersisteds(
+    new SqLiteEntityStructurePersisteds(
       new ReflectionClass(
         UserEntity::class
       )
