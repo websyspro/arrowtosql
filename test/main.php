@@ -1,7 +1,59 @@
 <?php
 
 use Websyspro\ArrowToSql\Repository;
+use Websyspro\Connection\Database;
+use Websyspro\Entity\Schemas\PostgresEntityStructurePersisteds;
+use Websyspro\Entity\Schemas\SqlServerEntityStructure;
+use Websyspro\Entity\Schemas\SqlServerEntityStructurePersisteds;
+use Websyspro\Entity\Schemas\SqlServerSchemaManager;
 use Websyspro\Test\Entities\UserEntity;
+use Websyspro\Entity\Schemas\MySqlEntityStructure;
+use Websyspro\Entity\Schemas\MySqlEntityStructurePersisteds;
+use Websyspro\Entity\Schemas\MySqlSchemaManager;
+use Websyspro\Entity\Schemas\PostgresEntityStructure;
+use Websyspro\Entity\Schemas\PostgresSchemaManager;
+
+$schemaManager = match( Database::driver()->name ){
+  "mysql" => new MySqlSchemaManager(
+    new MySqlEntityStructure(
+      new ReflectionClass(
+        UserEntity::class
+      )
+    ),
+    new MySqlEntityStructurePersisteds(
+      new ReflectionClass(
+        UserEntity::class
+      )
+    ) 
+  ),
+  "postgres" => new PostgresSchemaManager(
+    new PostgresEntityStructure(
+      new ReflectionClass(
+        UserEntity::class
+      )
+    ),
+    new PostgresEntityStructurePersisteds(
+      new ReflectionClass(
+        UserEntity::class
+      )
+    ) 
+  ),
+  "sqlserver" => new SqlServerSchemaManager(
+    new SqlServerEntityStructure(
+      new ReflectionClass(
+        UserEntity::class
+      )
+    ),
+    new SqlServerEntityStructurePersisteds(
+      new ReflectionClass(
+        UserEntity::class
+      )
+    ) 
+  )
+};   
+
+$schemaManager->asyncEntity();
+exit();
 
 $email = "cpd.emersontsa@gmail.com";
 
