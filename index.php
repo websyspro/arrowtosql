@@ -10,7 +10,7 @@ require_once __DIR__ . "/vendor/autoload.php";
 require_once __DIR__ . "/env.php";
 
 $jsonEncode = json_encode(
-  require_once match( fileAction::Repository ){
+  require_once match( fileAction::{$_GET["fileAction"]} ){
     fileAction::Create 
       => __DIR__ . '/test/main-create.php',
     fileAction::Repository
