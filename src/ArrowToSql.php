@@ -206,8 +206,7 @@ extends SqlUtils
   }
 
   private function resolveScopesAndTokens(
-    array|null $expression = null,
-    bool $isNotAppend = true
+    array|null $expression = null
   ): array {
     if( $expression === null ){
       $expression = $this->expression;
@@ -215,8 +214,8 @@ extends SqlUtils
 
     $this->mapper(
       $this->groupByTypesComma(
-        $this->slice( $expression, $this->indexOf( $expression, $isNotAppend ? T_START_PARENTESES : T_START_BRACKET ) + 1,
-          $this->indexOf( $expression, $isNotAppend ? T_END_PARENTESES : T_END_BRACKET ) - 1
+        $this->slice( $expression, $this->indexOf( $expression, T_START_PARENTESES ) + 1,
+          $this->indexOf( $expression, T_END_PARENTESES ) - 1
         )
       ), function( array $groupTokens ){
         [ $tokenEntity, $tokenVar ] = $groupTokens;
@@ -1061,7 +1060,7 @@ extends SqlUtils
   private function resolveAppend(
   ): void {
     $this->tokens = $this->resolveHierarchyColumn(
-      $this->resolveScopesAndTokens( null, false )
+      $this->resolveScopesAndTokens()
     );
 
     $this->scriptDialect = match( Database::driver()){
@@ -1086,8 +1085,6 @@ extends SqlUtils
     $this->resolveStatics();
     $this->resolveExpression();   
     $this->resolveAppend();
-
-    print_r($this);
 
     return new ColumnResult(
       "", []

@@ -9,14 +9,14 @@ use Websyspro\Utils\Collection;
 
 class Repository
 {
-  private WhereResult $whereResult;
-  private ColumnResult $selectResult;
-  private ColumnResult $groupByResult;
-  private ColumnResult $orderByResult;
-  private ColumnResult $orderByAscResult;
-  private ColumnResult $orderByDescResult;
+  public WhereResult $whereResult;
+  public ColumnResult $selectResult;
+  public ColumnResult $groupByResult;
+  public ColumnResult $orderByResult;
+  public ColumnResult $orderByAscResult;
+  public ColumnResult $orderByDescResult;
 
-  private ColumnResult $createResult;
+  public ColumnResult $createResult;
 
   public function __construct(
     private readonly string $entity
