@@ -24,7 +24,8 @@ try {
   ));
 
   $repository->select( fn( UserEntity $u ) => [
-    $u->sum(( $u->Id / $u->balance ) * $u->balance ), $u->name->trim()
+    $u->sum(( $u->Id / $u->balance ) * $u->balance )->as( "total" ), 
+    $u->name->trim()->as( "name" )
   ]);
 
   $repository->groupBy( fn( UserEntity $u ) => $u->name );

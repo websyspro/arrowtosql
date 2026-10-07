@@ -16,4 +16,5 @@ enum MethodList:string
   case In = "in";
   case NotIn = "notIn";
   case Sum = "sum";
+  case As = "as";
 }

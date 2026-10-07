@@ -9,6 +9,7 @@ use Websyspro\ArrowToSql\Expressions\ExpCompare;
 use Websyspro\ArrowToSql\Expressions\ExpDenying;
 use Websyspro\ArrowToSql\Expressions\ExpField;
 use Websyspro\ArrowToSql\Expressions\ExpFieldMethod;
+use Websyspro\ArrowToSql\Expressions\ExpFieldValue;
 use Websyspro\ArrowToSql\Expressions\ExpGroup;
 use Websyspro\ArrowToSql\Expressions\ExpIn;
 use Websyspro\ArrowToSql\Expressions\ExpIsNotNull;
@@ -22,7 +23,10 @@ use Websyspro\ArrowToSql\Expressions\ExpOperator;
 use Websyspro\ArrowToSql\Expressions\ExpSeparator;
 use Websyspro\ArrowToSql\Expressions\ExpSubQuery;
 use Websyspro\ArrowToSql\Expressions\ExpToken;
+use Websyspro\ArrowToSql\Expressions\ExpValue;
 use function sprintf;
+use function in_array;
+use function count;
 
 class AbstractScriptDialect
 extends SqlUtils
@@ -56,30 +60,62 @@ extends SqlUtils
     string $column
   ): string {
     return "Trim({$column})";
+  }
+  
+  public function resolveMethodToAs(
+    string $column,
+    ExpField|ExpMethod $expr,
+    ExpFieldMethod $method
+  ): string {
+    if( empty($method->args)){
+      return $column;
+    }
+
+    return "{$column} As {$expr->table}.{$method->args[0]->value}";
   }  
+
+  public function resolveExprFieldMethodArr(
+    ExpField|ExpMethod $expr
+  ): array {
+    return $this->filter(
+      $expr->methods, fn( ExpFieldMethod $expr ) => (
+        in_array( $expr->type, [ 
+          MethodType::Modify, MethodType::Alias 
+        ])
+      )
+    );    
+  }
+
+  public function resolveExprFieldMethods(
+    string $column,
+    ExpField|ExpMethod $expr,
+    ExpFieldMethod $method
+  ): string {
+    return match( $method->name ){
+      MethodList::ToDate->value => $this->resolveMethodToDate( $column ),
+      MethodList::Upper->value => $this->resolveMethodToUpper( $column ),
+      MethodList::Lower->value => $this->resolveMethodToLower( $column ),
+      MethodList::Trim->value => $this->resolveMethodToTrim( $column ),
+      MethodList::As->value => $this->resolveMethodToAs( $column, $expr, $method ),
+        default => $column
+    };
+  }
 
   public function resolveExprField(
     ExpField $expr
   ): string {
     if( $expr instanceof ExpField ){
-      $modifys = $this->filter(
-        $expr->methods, fn( ExpFieldMethod $expr ) => (
-          $expr->type === MethodType::Modify
-        )
-      );
+      $methods = $this->resolveExprFieldMethodArr($expr);
 
       $column = sprintf(
         "%s.%s", $expr->table, $expr->column
       );
       
-      foreach( $modifys as $modify ){
-        if( $modify instanceof ExpFieldMethod ){
-          $column = match( $modify->name ){
-            MethodList::ToDate->value => $this->resolveMethodToDate( $column ),
-            MethodList::Upper->value => $this->resolveMethodToUpper( $column ),
-            MethodList::Lower->value => $this->resolveMethodToLower( $column ),
-            MethodList::Trim->value => $this->resolveMethodToTrim( $column ),
-          };
+      foreach( $methods as $method ){
+        if( $method instanceof ExpFieldMethod ){
+          $column = $this->resolveExprFieldMethods(
+            $column, $expr, $method
+          );
         }
       }
 
@@ -464,10 +500,29 @@ extends SqlUtils
     return $this->resolveExprField( $expr );
   }
 
+  private function resolveExprColumnMethodName(
+    string $name
+  ): string {
+    return MethodList::from( $name )->name;
+  }  
+
   private function resolveExprColumnMethod(
     ExpMethod $expr
   ): string {
-    return sprintf( "Sum(%s)", $this->resolveExprColumns( $expr->childs ));
+    $exprMethod = sprintf( "%s(%s)",
+      $this->resolveExprColumnMethodName( $expr->name ), 
+      $this->resolveExprColumns( $expr->childs )
+    );
+
+    foreach( $this->resolveExprFieldMethodArr($expr) as $method ){
+      if( $method instanceof ExpFieldMethod ){
+        $exprMethod = $this->resolveExprFieldMethods(
+          $exprMethod, $expr, $method
+        );
+      }
+    }
+
+    return $exprMethod;
   }
 
   private function resolveExprColumnSeparator(
@@ -508,6 +563,29 @@ extends SqlUtils
     );
 
     return preg_replace("#\s+,#", ",", implode( " ", $tokens ));
+  }  
+
+  public function resolveExprAppend(
+    array $tokens = []
+  ): array {
+    $tokens = $this->mapper(
+      $tokens, function( mixed $expr ){
+        if( $expr instanceof ExpFieldValue ){
+          if( $expr->value instanceof ExpValue ){
+            [ $exprValue ] = $expr->value->childs;
+            $this->params[] = $this->expressionType->encode(
+              $exprValue, $expr->type
+            );
+          }
+
+          return [ $expr->column => "?" ];
+        }
+
+        return $expr->column;
+      }
+    );
+
+    return $tokens;
   }  
 
   public function resolveExprParams(

@@ -6,4 +6,5 @@ enum MethodType:string
 {
   case Modify = "Modify";
   case Compare = "Compare";
+  case Alias = "Alias";
 }

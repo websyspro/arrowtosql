@@ -3,6 +3,7 @@
 namespace Websyspro\ArrowToSql;
 
 use Closure;
+use function in_array;
 
 class SqlUtils
 {

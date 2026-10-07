@@ -2,6 +2,7 @@
 
 namespace Websyspro\ArrowToSql;
 
+use Websyspro\ArrowToSql\Interfaces\AppendResult;
 use Websyspro\ArrowToSql\Interfaces\ColumnResult;
 use Websyspro\ArrowToSql\Interfaces\WhereResult;
 use Closure;
@@ -15,8 +16,7 @@ class Repository
   public ColumnResult $orderByResult;
   public ColumnResult $orderByAscResult;
   public ColumnResult $orderByDescResult;
-
-  public ColumnResult $createResult;
+  public AppendResult $appendResult;
 
   public function __construct(
     private readonly string $entity
@@ -85,7 +85,7 @@ class Repository
   public function create(
     Closure $closure
   ): mixed {
-    $this->createResult = $this->arrowToSql($closure)
+    $this->appendResult = $this->arrowToSql($closure)
       ->getAppendResult();
 
     return $this;      

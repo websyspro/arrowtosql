@@ -2,7 +2,6 @@
 
 namespace Websyspro\ArrowToSql;
 
-use Websyspro\ArrowToSql\Types\ColumnText;
 use Websyspro\Entity\Types\ColumnDate;
 use Websyspro\Entity\Types\ColumnDatetime;
 use Websyspro\Entity\Types\ColumnDecimal;
@@ -10,6 +9,7 @@ use Websyspro\Entity\Types\ColumnInt;
 use Websyspro\Entity\Types\ColumnLongText;
 use Websyspro\Entity\Types\ColumnFlag;
 
+use Websyspro\Entity\Types\ColumnText;
 use function is_string;
 use function is_bool;
 
@@ -25,19 +25,19 @@ class ExpressionType
       }
     }
 
-    if( $type === basename( ColumnDate::class ) ){
+    if( $type === ColumnDate::class ){
       return $this->encodeDate( $value );
-    } else if( $type === basename( ColumnDatetime::class )){
+    } else if( $type === ColumnDatetime::class ){
       return $this->encodeDatetime( $value );
-    } else if( $type === basename( ColumnDecimal::class )){
+    } else if( $type === ColumnDecimal::class ){
       return $this->encodeDecimal( $value );
-    } else if( $type === basename( ColumnText::class )){
+    } else if( $type === ColumnText::class ){
       return $this->encodeText( $value );
-    }  else if( $type === basename( ColumnLongText::class )){
+    }  else if( $type === ColumnLongText::class ){
       return $this->encodeText( $value );
-    } else if( $type === basename( ColumnInt::class )){
+    } else if( $type === ColumnInt::class ){
       return $this->encodeNumber( $value );
-    } else if( $type === basename( ColumnFlag::class )){
+    } else if( $type === ColumnFlag::class ){
       return $this->encodeFlag( $value );
     }
 
