@@ -8,7 +8,6 @@ use Websyspro\Entity\Types\ColumnDecimal;
 use Websyspro\Entity\Types\ColumnInt;
 use Websyspro\Entity\Types\ColumnLongText;
 use Websyspro\Entity\Types\ColumnFlag;
-
 use Websyspro\Entity\Types\ColumnText;
 use function is_string;
 use function is_bool;
