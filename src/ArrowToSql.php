@@ -1177,7 +1177,7 @@ extends SqlUtils
     $this->resolveAppend();
 
     return new AppendResult(
-      $this->entityStructure->entityNames->alias, 
+      $this->entityStructure->getEntityAlias(), 
       $this->script, $this->params
     );    
   }  
