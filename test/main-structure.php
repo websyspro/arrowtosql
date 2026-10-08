@@ -20,7 +20,7 @@ use Websyspro\Test\Entities\Shops\ConfigEntity;
 use Websyspro\Test\Entities\Shops\CustomerEntity;
 use Websyspro\Test\Entities\Shops\DocumentEntity;
 use Websyspro\Test\Entities\Shops\DocumentItemEntity;
-use Websyspro\Test\Entities\Shops\OperadorEntity;
+use Websyspro\Test\Entities\Shops\OperatorEntity;
 use Websyspro\Test\Entities\Shops\ProductEntity;
 use Websyspro\Test\Entities\Shops\ProductGroupEntity;
 
@@ -38,14 +38,14 @@ function schemaManager(
 try {
   foreach([
     BoxEntity::class,
-    // ConfigEntity::class,
-    // CashMovementEntity::class,
-    // CustomerEntity::class,
-    // DocumentEntity::class,
-    // DocumentItemEntity::class,
-    // OperadorEntity::class,
-    // ProductEntity::class,
-    // ProductGroupEntity::class
+    ConfigEntity::class,
+    CashMovementEntity::class,
+    CustomerEntity::class,
+    DocumentEntity::class,
+    DocumentItemEntity::class,
+    OperatorEntity::class,
+    ProductEntity::class,
+    ProductGroupEntity::class
   ] as $classEntity){
     $schemaManager = schemaManager(
       new ReflectionClass(
@@ -56,7 +56,7 @@ try {
     $schemaManager->asyncEntity();
   }
 
-  return $schemaManager;
+  return [];
 } catch( Throwable $e ){
   return (object)[ 
     "File" => $e->getFile(),

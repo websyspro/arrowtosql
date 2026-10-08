@@ -25,7 +25,7 @@ extends BaseIncrementEntity
   #[Unique(1)]
   public ColumnText $state;
 
-  #[ForeignKey(OperadorEntity::class)]
+  #[ForeignKey(OperatorEntity::class)]
   #[Unique(2)]
   public ColumnInt $operadorId;
 

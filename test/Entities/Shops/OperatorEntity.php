@@ -7,7 +7,7 @@ use Websyspro\Entity\Decorators\Length;
 use Websyspro\Entity\Decorators\Unique;
 use Websyspro\Entity\Types\ColumnText;
 
-class OperadorEntity
+class OperatorEntity
 extends BaseIncrementEntity
 {
   #[Length(64)]
