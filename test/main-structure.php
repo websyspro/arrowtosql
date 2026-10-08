@@ -1,7 +1,6 @@
 <?php
 
 use Websyspro\Connection\Database;
-use Websyspro\Test\Entities\UserEntity;
 use Websyspro\Connection\Enums\DriverType;
 use Websyspro\Entity\Schemas\SqLiteEntityStructure;
 use Websyspro\Entity\Schemas\SqLiteEntityStructurePersisteds;
@@ -15,60 +14,48 @@ use Websyspro\Entity\Schemas\MySqlSchemaManager;
 use Websyspro\Entity\Schemas\PostgresEntityStructurePersisteds;
 use Websyspro\Entity\Schemas\PostgresEntityStructure;
 use Websyspro\Entity\Schemas\PostgresSchemaManager;
+use Websyspro\Test\Entities\Shops\BoxEntity;
+use Websyspro\Test\Entities\Shops\CashMovementEntity;
+use Websyspro\Test\Entities\Shops\ConfigEntity;
+use Websyspro\Test\Entities\Shops\CustomerEntity;
+use Websyspro\Test\Entities\Shops\DocumentEntity;
+use Websyspro\Test\Entities\Shops\DocumentItemEntity;
+use Websyspro\Test\Entities\Shops\OperadorEntity;
+use Websyspro\Test\Entities\Shops\ProductEntity;
+use Websyspro\Test\Entities\Shops\ProductGroupEntity;
 
-$schemaManager = match( Database::driver() ){
-  DriverType::MySql => new MySqlSchemaManager(
-    new MySqlEntityStructure(
-      new ReflectionClass(
-        UserEntity::class
-      )
-    ),
-    new MySqlEntityStructurePersisteds(
-      new ReflectionClass(
-        UserEntity::class
-      )
-    ) 
-  ),
-  DriverType::PostgreSQL => new PostgresSchemaManager(
-    new PostgresEntityStructure(
-      new ReflectionClass(
-        UserEntity::class
-      )
-    ),
-    new PostgresEntityStructurePersisteds(
-      new ReflectionClass(
-        UserEntity::class
-      )
-    ) 
-  ),
-  DriverType::SqlServer => new SqlServerSchemaManager(
-    new SqlServerEntityStructure(
-      new ReflectionClass(
-        UserEntity::class
-      )
-    ),
-    new SqlServerEntityStructurePersisteds(
-      new ReflectionClass(
-        UserEntity::class
-      )
-    ) 
-  ),
-  DriverType::Sqlite => new SqLiteSchemaManager(
-    new SqLiteEntityStructure(
-      new ReflectionClass(
-        UserEntity::class
-      )
-    ),
-    new SqLiteEntityStructurePersisteds(
-      new ReflectionClass(
-        UserEntity::class
-      )
-    ) 
-  )
-};   
+function schemaManager(
+  ReflectionClass $rf
+): MySqlSchemaManager|PostgresSchemaManager|SqlServerSchemaManager|SqLiteSchemaManager {
+  return match( Database::driver() ){
+    DriverType::MySql => new MySqlSchemaManager( new MySqlEntityStructure($rf), new MySqlEntityStructurePersisteds($rf)),
+    DriverType::PostgreSQL => new PostgresSchemaManager( new PostgresEntityStructure($rf), new PostgresEntityStructurePersisteds($rf)),
+    DriverType::SqlServer => new SqlServerSchemaManager( new SqlServerEntityStructure($rf), new SqlServerEntityStructurePersisteds($rf)),
+    DriverType::Sqlite => new SqLiteSchemaManager( new SqLiteEntityStructure($rf), new SqLiteEntityStructurePersisteds($rf))
+  };
+}
 
 try {
-  $schemaManager->asyncEntity();
+  foreach([
+    BoxEntity::class,
+    // ConfigEntity::class,
+    // CashMovementEntity::class,
+    // CustomerEntity::class,
+    // DocumentEntity::class,
+    // DocumentItemEntity::class,
+    // OperadorEntity::class,
+    // ProductEntity::class,
+    // ProductGroupEntity::class
+  ] as $classEntity){
+    $schemaManager = schemaManager(
+      new ReflectionClass(
+        $classEntity
+      )
+    );
+
+    $schemaManager->asyncEntity();
+  }
+
   return $schemaManager;
 } catch( Throwable $e ){
   return (object)[ 
