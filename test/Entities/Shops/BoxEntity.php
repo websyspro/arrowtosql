@@ -23,11 +23,13 @@ extends BaseIncrementEntity
 
   #[Length(1)]
   #[Unique(1)]
+  #[Index(2)]
   public ColumnText $state;
 
   #[ForeignKey(OperatorEntity::class)]
   #[Unique(2)]
-  public ColumnInt $operadorId;
+  #[Index(1)]
+  public ColumnInt $operatorId;
 
   #[Length(255)]
   public ColumnText $printer;

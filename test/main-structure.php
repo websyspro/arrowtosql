@@ -54,8 +54,9 @@ try {
     );
 
     $schemaManager->asyncEntity();
+    return $schemaManager;
   }
-
+  
   return [];
 } catch( Throwable $e ){
   return (object)[ 
