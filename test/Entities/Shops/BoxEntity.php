@@ -8,6 +8,7 @@ use Websyspro\Entity\Decorators\Index;
 use Websyspro\Entity\Decorators\Length;
 use Websyspro\Entity\Decorators\Precision;
 use Websyspro\Entity\Decorators\Unique;
+use Websyspro\Entity\Types\ColumnBigInt;
 use Websyspro\Entity\Types\ColumnDatetime;
 use Websyspro\Entity\Types\ColumnDecimal;
 use Websyspro\Entity\Types\ColumnInt;
@@ -29,7 +30,7 @@ extends BaseIncrementEntity
   #[ForeignKey(OperatorEntity::class)]
   #[Unique(2)]
   #[Index(1)]
-  public ColumnInt $operatorId;
+  public ColumnBigInt $operatorId;
 
   #[Length(255)]
   public ColumnText $printer;

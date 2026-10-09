@@ -7,6 +7,7 @@ use Websyspro\Entity\Decorators\ForeignKey;
 use Websyspro\Entity\Decorators\Index;
 use Websyspro\Entity\Decorators\Length;
 use Websyspro\Entity\Decorators\Precision;
+use Websyspro\Entity\Types\ColumnBigInt;
 use Websyspro\Entity\Types\ColumnDecimal;
 use Websyspro\Entity\Types\ColumnInt;
 use Websyspro\Entity\Types\ColumnText;
@@ -22,11 +23,11 @@ extends BaseIncrementEntity
 
   #[Index()]
   #[ForeignKey(DocumentEntity::class)]
-  public ColumnInt $documentId;
+  public ColumnBigInt $documentId;
 
   #[Index()]
   #[ForeignKey(BoxEntity::class)]
-  public ColumnInt $boxId;
+  public ColumnBigInt $boxId;
 
   #[Precision(10,2)]
   public ColumnDecimal $value;

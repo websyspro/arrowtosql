@@ -35,18 +35,20 @@ function schemaManager(
   };
 }
 
+$entityArrs = [
+  BoxEntity::class,
+  ConfigEntity::class,
+  CashMovementEntity::class,
+  CustomerEntity::class,
+  DocumentEntity::class,
+  DocumentItemEntity::class,
+  OperatorEntity::class,
+  ProductEntity::class,
+  ProductGroupEntity::class
+];
+
 try {
-  foreach([
-    BoxEntity::class,
-    ConfigEntity::class,
-    CashMovementEntity::class,
-    CustomerEntity::class,
-    DocumentEntity::class,
-    DocumentItemEntity::class,
-    OperatorEntity::class,
-    ProductEntity::class,
-    ProductGroupEntity::class
-  ] as $classEntity){
+  foreach( $entityArrs as $classEntity ){
     $schemaManager = schemaManager(
       new ReflectionClass(
         $classEntity
@@ -54,8 +56,17 @@ try {
     );
 
     $schemaManager->asyncEntity();
-    return $schemaManager;
   }
+
+  foreach( $entityArrs as $classEntity ){
+    $schemaManager = schemaManager(
+      new ReflectionClass(
+        $classEntity
+      )
+    );
+
+    $schemaManager->asyncConstraint();
+  }  
   
   return [];
 } catch( Throwable $e ){

@@ -7,6 +7,7 @@ use Websyspro\Entity\Decorators\ForeignKey;
 use Websyspro\Entity\Decorators\Length;
 use Websyspro\Entity\Decorators\Precision;
 use Websyspro\Entity\Decorators\Unique;
+use Websyspro\Entity\Types\ColumnBigInt;
 use Websyspro\Entity\Types\ColumnDecimal;
 use Websyspro\Entity\Types\ColumnInt;
 use Websyspro\Entity\Types\ColumnText;
@@ -22,5 +23,5 @@ extends BaseIncrementEntity
   public ColumnDecimal $purchaseLimitPerCustomer;
 
   #[ForeignKey(BoxEntity::class)]
-  public ColumnInt $boxId;
+  public ColumnBigInt $boxId;
 }
