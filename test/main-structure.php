@@ -49,22 +49,13 @@ $entityArrs = [
 
 try {
   foreach( $entityArrs as $classEntity ){
-    $schemaManager = schemaManager(
-      new ReflectionClass(
-        $classEntity
-      )
-    );
-
+    $schemaManager = schemaManager( new ReflectionClass( $classEntity ));
     $schemaManager->asyncEntity();
+    $schemaManager;
   }
 
   foreach( $entityArrs as $classEntity ){
-    $schemaManager = schemaManager(
-      new ReflectionClass(
-        $classEntity
-      )
-    );
-
+    $schemaManager = schemaManager( new ReflectionClass( $classEntity ));
     $schemaManager->asyncConstraint();
   }  
   

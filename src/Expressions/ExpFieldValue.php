@@ -9,7 +9,7 @@ extends AbstractExpType
     public readonly string $table,
     public readonly string $column,
     public readonly string $type,
-    public readonly ExpValue $value
+    public readonly array $value
   ){
     parent::__construct();
   }  

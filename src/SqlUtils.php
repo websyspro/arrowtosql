@@ -2,8 +2,9 @@
 
 namespace Websyspro\ArrowToSql;
 
-use Closure;
+use function array_slice;
 use function in_array;
+use Closure;
 
 class SqlUtils
 {

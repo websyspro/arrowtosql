@@ -2,7 +2,7 @@
 
 namespace Websyspro\Test\Entities;
 
-use Websyspro\Entity\BaseUUIDEntity;
+use Websyspro\Entity\BaseIncrementEntity;
 use Websyspro\Entity\Decorators\Entity;
 use Websyspro\Entity\Decorators\HasMany;
 use Websyspro\Entity\Decorators\Index;
@@ -16,7 +16,7 @@ use Websyspro\Entity\Types\ColumnText;
 
 #[Entity("users")]
 class UserEntity
-extends BaseUUIDEntity
+extends BaseIncrementEntity
 {
   #[Required()]
   #[Length(100)]

@@ -24,6 +24,11 @@ use Websyspro\ArrowToSql\Expressions\ExpSeparator;
 use Websyspro\ArrowToSql\Expressions\ExpSubQuery;
 use Websyspro\ArrowToSql\Expressions\ExpToken;
 use Websyspro\ArrowToSql\Expressions\ExpValue;
+use Websyspro\Entity\Schemas\MySqlEntityStructure;
+use Websyspro\Entity\Schemas\PostgresEntityStructure;
+use Websyspro\Entity\Schemas\SqLiteEntityStructure;
+use Websyspro\Entity\Schemas\SqlServerEntityStructure;
+use function call_user_func_array;
 use function sprintf;
 use function in_array;
 use function count;
@@ -566,26 +571,55 @@ extends SqlUtils
   }  
 
   public function resolveExprAppend(
-    array $tokens = []
+    MySqlEntityStructure|
+    SqlServerEntityStructure|
+    PostgresEntityStructure|
+    SqLiteEntityStructure $entityStructure,
+    array $tokens = [],
+    array $fields = []
   ): array {
-    $tokens = $this->mapper(
-      $tokens, function( mixed $expr ){
-        if( $expr instanceof ExpFieldValue ){
-          if( $expr->value instanceof ExpValue ){
-            [ $exprValue ] = $expr->value->childs;
-            $this->params[] = $this->expressionType->encode(
-              $exprValue, $expr->type
+    foreach( $entityStructure->columns->items as $column ){
+      $fields[ $column ] = [];
+
+      if( isset( $entityStructure->initialDefaults->items[ $column ])){
+        if( class_exists( $entityStructure->initialDefaults->items[ $column ])){
+          if( method_exists( $entityStructure->initialDefaults->items[ $column ], "generate" )){
+            $fields[ $column ] = call_user_func_array(
+              [ $entityStructure->initialDefaults->items[ $column ], "generate" ], [] 
             );
           }
-
-          return [ $expr->column => "?" ];
+        } else {
+          $fields[ $column ] = $entityStructure->initialDefaults->items[ $column ];
         }
-
-        return $expr->column;
       }
+    }
+
+    foreach( $entityStructure->columns->items as $column ){
+      foreach( $tokens as $expr ){
+        if( $expr instanceof ExpFieldValue ){
+          if( is_array( $expr->value ) && empty( $expr->value ) === false ){
+            if( $expr->column === $column ){
+              [ $exprToken ] = $this->resolveExprValue( $expr->value );
+              if( $exprToken instanceof ExpToken ){
+                $fields[ $column ] = $this->expressionType->encode(
+                  $exprToken->value, $expr->type
+                );
+              }
+            }
+          }
+        }
+      }
+    }
+
+    $this->params = $this->filter(
+      $fields, fn(string|array $value) => (
+        $value !== []
+      )
     );
 
-    return $tokens;
+    return array_keys( array_filter(
+      $fields, fn(string|array $value) => $value !== []
+    ));
   }  
 
   public function resolveExprParams(

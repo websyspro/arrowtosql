@@ -2,11 +2,14 @@
 
 namespace Websyspro\ArrowToSql;
 
+use Exception;
 use Websyspro\ArrowToSql\Interfaces\AppendResult;
 use Websyspro\ArrowToSql\Interfaces\ColumnResult;
 use Websyspro\ArrowToSql\Interfaces\WhereResult;
-use Closure;
+use Websyspro\Connection\Database;
 use Websyspro\Utils\Collection;
+use function sprintf;
+use Closure;
 
 class Repository
 {
@@ -84,11 +87,26 @@ class Repository
 
   public function create(
     Closure $closure
-  ): mixed {
+  ): bool {
     $this->appendResult = $this->arrowToSql($closure)
       ->getAppendResult();
 
-    return $this;      
+    if( $this->appendResult instanceof AppendResult ){
+      try {
+        Database::query( 
+          sprintf( "Insert into %s (%s) values(%s)", 
+            $this->appendResult->table, 
+            $this->appendResult->fields,
+            $this->appendResult->values
+          ), $this->appendResult->params
+        );
+
+        return true;
+      } catch( Exception $exception ){
+      }
+    }
+
+    return false;
   }
 
   public function update(

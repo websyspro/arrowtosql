@@ -86,7 +86,7 @@ class ExpressionType
   public function encodeText(
     string $value
   ): string|array {
-    return $value;
+    return trim( $value, "\"" );
   }
   
   public function encodeNumber(

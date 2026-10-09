@@ -477,10 +477,9 @@ extends SqlUtils
     return new ExpFieldValue(
       $entityStructure->getEntityAlias(),
       $entityStructure->getColumnName( $entityStructureColumn ),
-      $entityStructure->getColumnType( $entityStructureColumn ),
-      $tokenValue instanceof ExpToken 
-        ? new ExpValue([ $tokenValue->value ]) 
-        : new ExpValue()
+      $entityStructure->getColumnType( $entityStructureColumn ), [
+        $tokenValue
+      ]
     );
   }  
 
@@ -1161,9 +1160,26 @@ extends SqlUtils
   ): void {
     $this->tokens = $this->resolveHierarchyAppend( $this->resolveScopesAndTokens());
     [ $this->script, $this->params ] = [
-      $this->resolveDialect()->resolveExprAppend( $this->tokens ),
+      $this->resolveDialect()->resolveExprAppend( $this->entityStructure, $this->tokens ),
       $this->resolveDialect()->resolveExprParams()
     ];    
+  }  
+
+  private function resolveAppendFields(
+  ): string {
+    return implode( ", ", $this->script );
+  }
+
+  private function resolveAppendValues(
+  ): string {
+    return implode( ", ", array_map(
+      fn(string $field) => "?", $this->script )
+    );
+  }
+
+  private function resolveAppendParams(
+  ): array {
+    return $this->params;
   }  
 
   public function getAppendResult(
@@ -1177,8 +1193,10 @@ extends SqlUtils
     $this->resolveAppend();
 
     return new AppendResult(
-      $this->entityStructure->getEntityAlias(), 
-      $this->script, $this->params
+      $this->entityStructure->getEntityAlias(),
+      $this->resolveAppendFields(),
+      $this->resolveAppendValues(), 
+      $this->resolveAppendParams()
     );    
   }  
 }

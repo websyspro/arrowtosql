@@ -6,7 +6,8 @@ class AppendResult
 {
   public function __construct(
     public readonly string $table,
-    public readonly array $fields,
+    public readonly string $fields,
+    public readonly string $values,
     public readonly array $params
   ){}  
 }

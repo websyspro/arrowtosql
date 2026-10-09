@@ -4,6 +4,7 @@ enum fileAction {
   case Create;
   case Repository;
   case Structure;
+  case Entity;
 }
 
 require_once __DIR__ . "/vendor/autoload.php";
@@ -16,7 +17,9 @@ $jsonEncode = json_encode(
     fileAction::Repository
       => __DIR__ . '/test/main-repository.php',
     fileAction::Structure
-      => __DIR__ . '/test/main-structure.php'
+      => __DIR__ . '/test/main-structure.php',
+    fileAction::Entity
+      => __DIR__ . '/test/main-entity.php'      
   }
 );
 
