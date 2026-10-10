@@ -1165,6 +1165,11 @@ extends SqlUtils
     ];    
   }  
 
+  private function resolveAppendAlias(
+  ): string {
+    return $this->entityStructure->getEntityAlias();
+  }  
+
   private function resolveAppendFields(
   ): string {
     return implode( ", ", $this->script );
@@ -1193,7 +1198,7 @@ extends SqlUtils
     $this->resolveAppend();
 
     return new AppendResult(
-      $this->entityStructure->getEntityAlias(),
+      $this->resolveAppendAlias(),
       $this->resolveAppendFields(),
       $this->resolveAppendValues(), 
       $this->resolveAppendParams()

@@ -581,15 +581,15 @@ extends SqlUtils
     foreach( $entityStructure->columns->items as $column ){
       $fields[ $column ] = [];
 
-      if( isset( $entityStructure->initialDefaults->items[ $column ])){
-        if( class_exists( $entityStructure->initialDefaults->items[ $column ])){
-          if( method_exists( $entityStructure->initialDefaults->items[ $column ], "generate" )){
+      if( isset( $entityStructure->initialInsertDefaults->items[ $column ])){
+        if( class_exists( $entityStructure->initialInsertDefaults->items[ $column ])){
+          if( method_exists( $entityStructure->initialInsertDefaults->items[ $column ], "generate" )){
             $fields[ $column ] = call_user_func_array(
-              [ $entityStructure->initialDefaults->items[ $column ], "generate" ], [] 
+              [ $entityStructure->initialInsertDefaults->items[ $column ], "generate" ], [] 
             );
           }
         } else {
-          $fields[ $column ] = $entityStructure->initialDefaults->items[ $column ];
+          $fields[ $column ] = $entityStructure->initialInsertDefaults->items[ $column ];
         }
       }
     }
