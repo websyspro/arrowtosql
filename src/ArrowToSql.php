@@ -468,7 +468,7 @@ extends SqlUtils
     $entityStructure = $this->resolveEntityStructure( $childs );
     $entityStructureColumn = (string)$childs[2]->value;
 
-    [ $tokenValue ] = $this->slice( 
+    $tokenValue = $this->slice( 
       $childs, $this->indexOf(
         $childs, T_DOUBLE_ARROW
       ) + 1

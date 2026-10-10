@@ -2,16 +2,20 @@
 
 use Websyspro\ArrowToSql\Repository;
 use Websyspro\Test\Entities\Shops\OperatorEntity;
-
-$operador = $_GET[ "name" ];
+use Websyspro\Test\Imports\OperatorImport;
 
 try {
   $repository = new Repository(OperatorEntity::class);
-  $repository->create( 
-    fn( OperatorEntity $operator ) => [
-      $operator->name => $operador
-    ]
-  );
+  foreach( OperatorImport::rows() as $rows ){
+    $repository->create( 
+      fn( OperatorEntity $operator ) => [
+        // $operator->id => $rows["Id"],
+        $operator->name => $rows["Name"]
+      ]
+    );
+    
+    break;
+  }
 
   return $repository;
 } catch( Throwable $e ){

@@ -23,7 +23,6 @@ use Websyspro\ArrowToSql\Expressions\ExpOperator;
 use Websyspro\ArrowToSql\Expressions\ExpSeparator;
 use Websyspro\ArrowToSql\Expressions\ExpSubQuery;
 use Websyspro\ArrowToSql\Expressions\ExpToken;
-use Websyspro\ArrowToSql\Expressions\ExpValue;
 use Websyspro\Entity\Schemas\MySqlEntityStructure;
 use Websyspro\Entity\Schemas\PostgresEntityStructure;
 use Websyspro\Entity\Schemas\SqLiteEntityStructure;
@@ -32,6 +31,9 @@ use function call_user_func_array;
 use function sprintf;
 use function in_array;
 use function count;
+use function is_string;
+use function is_array;
+use function is_object;
 
 class AbstractScriptDialect
 extends SqlUtils
@@ -138,12 +140,12 @@ extends SqlUtils
 
         if( is_array( $statics )){
           $staticValue = $statics[
-            trim( $value, "$" )
+            trim( $value, "$\"" )
           ] ?? null;
         } else
         if( is_object( $statics )){
           $staticValue = $statics->{
-            trim( $value, "$" )
+            trim( $value, "$\"" )
           } ?? null;
         }
         
@@ -224,7 +226,7 @@ extends SqlUtils
             : new ExpToken(
                 T_STRING, 
                 $constantEnum->value,
-                $this->resolveTokenName(T_STRING)
+                $this->resolveTokenName( T_STRING )
               )
         ];
       }
@@ -599,7 +601,10 @@ extends SqlUtils
         if( $expr instanceof ExpFieldValue ){
           if( is_array( $expr->value ) && empty( $expr->value ) === false ){
             if( $expr->column === $column ){
-              [ $exprToken ] = $this->resolveExprValue( $expr->value );
+              [ $exprToken ] = $this->resolveExprValue( 
+                $expr->value[0]
+              );
+
               if( $exprToken instanceof ExpToken ){
                 $fields[ $column ] = $this->expressionType->encode(
                   $exprToken->value, $expr->type
