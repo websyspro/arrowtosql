@@ -6,17 +6,16 @@ use Websyspro\Entity\Schemas\MySqlEntityStructure;
 use Websyspro\Entity\Schemas\PostgresEntityStructure;
 use Websyspro\Entity\Schemas\SqLiteEntityStructure;
 use Websyspro\Entity\Schemas\SqlServerEntityStructure;
-use Websyspro\Test\Entities\Shops\BoxEntity;
 use Websyspro\Test\Entities\UserEntity;
 
 function entityStructure(
   ReflectionClass $rf
 ): MySqlEntityStructure|PostgresEntityStructure|SqlServerEntityStructure|SqLiteEntityStructure {
   return match( Database::driver() ){
-    DriverType::MySql => new MySqlEntityStructure($rf),
-    DriverType::PostgreSQL => new PostgresEntityStructure($rf),
     DriverType::SqlServer => new SqlServerEntityStructure($rf),
-    DriverType::Sqlite => new SqLiteEntityStructure($rf)
+    DriverType::Postgres => new PostgresEntityStructure($rf),
+    DriverType::SqLite => new SqLiteEntityStructure($rf),
+    DriverType::MySql => new MySqlEntityStructure($rf)
   };
 }
 

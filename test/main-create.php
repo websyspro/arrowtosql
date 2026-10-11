@@ -44,7 +44,10 @@ try {
     );
   }
 
-  return [ "rowsImporteds" => $entityResults ];
+  return [ 
+    "success" => true, 
+    "content" => $entityResults
+  ];
 } catch( Throwable $e ){
   return (object)[ 
     "File" => $e->getFile(),
