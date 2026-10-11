@@ -7,6 +7,7 @@ use Websyspro\ArrowToSql\Enums\MethodList;
 use Websyspro\ArrowToSql\Enums\MethodType;
 use Websyspro\ArrowToSql\Expressions\ExpFieldValue;
 use Websyspro\ArrowToSql\Interfaces\AppendResult;
+use Websyspro\ArrowToSql\Interfaces\AppendResultList;
 use Websyspro\ArrowToSql\Interfaces\ColumnResult;
 use Websyspro\ArrowToSql\Interfaces\WhereResult;
 use Websyspro\ArrowToSql\Expressions\ExpBetween;
@@ -84,7 +85,7 @@ extends SqlUtils
   private mixed $scriptDialect;
 
   public function __construct(
-    private Closure $closure  
+    private Closure|array $closure  
   ){}
 
   private function resolveExpressionType(
@@ -134,8 +135,9 @@ extends SqlUtils
 
   private function resolveStatics(
   ): void {
-    $this->statics = $this->reflection
-      ->getStaticVariables();    
+    $this->statics = isset( $this->reflection )
+      ? $this->reflection->getStaticVariables() 
+      : [];
   }
 
   private function resolveExpression(
@@ -222,7 +224,11 @@ extends SqlUtils
   private function resolverEntityStructureBase(
     string $entityClass
   ): mixed {
-    return match( Database::driver() ){
+    if( isset( $this->entityStructure )){
+      return $this->entityStructure;
+    }
+
+    $this->entityStructure = match( Database::driver() ){
       DriverType::PostgreSQL => new PostgresEntityStructure( 
         new ReflectionClass( $entityClass )
       ),
@@ -236,6 +242,8 @@ extends SqlUtils
         new ReflectionClass( $entityClass )
       ),
     };
+
+    return $this->entityStructure;
   }
 
   private function resolveScopesAndTokens(
@@ -1175,8 +1183,10 @@ extends SqlUtils
 
   private function resolveAppendValues(
   ): string {
-    return implode( ", ", array_map(
-      fn(string $field) => "?", $this->script )
+    return sprintf( "(%s)", implode(
+      ", ", array_map(
+        fn(string $field) => "?", $this->script )
+      )
     );
   }
 
@@ -1186,7 +1196,7 @@ extends SqlUtils
   }  
 
   public function getAppendResult(
-  ): AppendResult {
+  ): AppendResultList {
     $this->resolveExpressionType();
     $this->resolveReflection();
     $this->resolveRows();
@@ -1195,11 +1205,45 @@ extends SqlUtils
     $this->resolveExpression();   
     $this->resolveAppend();
 
-    return new AppendResult(
+    return new AppendResultList(
       $this->resolveAppendAlias(),
-      $this->resolveAppendFields(),
-      $this->resolveAppendValues(), 
-      $this->resolveAppendParams()
+      $this->resolveAppendFields(), array_chunk([
+        new AppendResult(
+          $this->resolveAppendValues(), 
+          $this->resolveAppendParams()
+        )], 64
+      )
     );    
+  }
+  
+  public function getAppendResultFromArray(
+    string $entity,
+    array $closureOrListArr,
+    array $appendResults = []
+  ): AppendResultList {
+    $this->resolveExpressionType();
+    $this->resolveStatics();
+
+    $appendResults = $this->mapper( 
+      $closureOrListArr, function( array $appendResult ) use( $entity ){
+        [ $this->script, $this->params ] = [
+          $this->resolveDialect()->resolveExprAppend(
+            $this->resolverEntityStructureBase( $entity ), $appendResult
+          ), $this->resolveDialect()->resolveExprParams()
+        ];
+
+        return new AppendResult(
+          $this->resolveAppendValues(), 
+          $this->resolveAppendParams()
+        );
+      }
+    );
+
+    return new AppendResultList( 
+      $this->resolveAppendAlias(),
+      $this->resolveAppendFields(), array_chunk( 
+        $appendResults, 64
+      ) 
+    );
   }  
 }

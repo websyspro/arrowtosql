@@ -35,6 +35,7 @@ function schemaManager(
   };
 }
 
+$entityResults = [];
 $entityArrs = [
   BoxEntity::class,
   ConfigEntity::class,
@@ -48,18 +49,22 @@ $entityArrs = [
 ];
 
 try {
-  foreach( $entityArrs as $classEntity ){
-    $schemaManager = schemaManager( new ReflectionClass( $classEntity ));
+  foreach( $entityArrs as $entity ){
+    $schemaManager = schemaManager( new ReflectionClass( $entity ));
     $schemaManager->asyncEntity();
     $schemaManager;
+
+    $entityResults[] = sprintf(
+      "Created table %s", basename( $entity )
+    );    
   }
 
-  foreach( $entityArrs as $classEntity ){
-    $schemaManager = schemaManager( new ReflectionClass( $classEntity ));
+  foreach( $entityArrs as $entity ){
+    $schemaManager = schemaManager( new ReflectionClass( $entity ));
     $schemaManager->asyncConstraint();
   }  
   
-  return [];
+  return [ "tablesCreateds" => $entityResults ];
 } catch( Throwable $e ){
   return (object)[ 
     "File" => $e->getFile(),

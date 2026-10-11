@@ -28,7 +28,6 @@ extends BaseIncrementEntity
   public ColumnText $state;
 
   #[ForeignKey(OperatorEntity::class)]
-  #[Unique(2)]
   #[Index(1)]
   public ColumnBigInt $operatorId;
 

@@ -2,13 +2,18 @@
 
 namespace Websyspro\ArrowToSql;
 
-use Exception;
 use Websyspro\ArrowToSql\Interfaces\AppendResult;
+use Websyspro\ArrowToSql\Interfaces\AppendResultList;
+use Websyspro\ArrowToSql\Interfaces\AppendResultScript;
 use Websyspro\ArrowToSql\Interfaces\ColumnResult;
 use Websyspro\ArrowToSql\Interfaces\WhereResult;
 use Websyspro\Connection\Database;
+use Websyspro\Connection\Enums\DriverType;
+use Websyspro\Entity\Schemas\MySqlEntityStructure;
 use Websyspro\Utils\Collection;
+use function is_array;
 use function sprintf;
+use Exception;
 use Closure;
 
 class Repository
@@ -19,14 +24,14 @@ class Repository
   public ColumnResult $orderByResult;
   public ColumnResult $orderByAscResult;
   public ColumnResult $orderByDescResult;
-  public AppendResult $appendResult;
+  public AppendResultList $appendResultLists;
 
   public function __construct(
     private readonly string $entity
   ){}
 
   private function arrowToSql(
-    Closure $closure
+    Closure|array $closure
   ): ArrowToSql {
     return new ArrowToSQL($closure);
   }  
@@ -70,40 +75,42 @@ class Repository
   public function orderByAsc(
     Closure $closure
   ): Repository {
-    $this->orderByAscResult = $this->arrowToSql($closure)
-      ->getColumnResult();
-    
+    $this->orderByAscResult = $this->arrowToSql($closure)->getColumnResult();
     return $this;
   }
 
   public function orderByDesc(
     Closure $closure
   ): Repository {
-    $this->orderByDescResult = $this->arrowToSql($closure)
-      ->getColumnResult();
-    
+    $this->orderByDescResult = $this->arrowToSql($closure)->getColumnResult();
     return $this;
   }
 
   public function create(
-    Closure $closure
+    Closure|array $closureOrListArr
   ): bool {
-    $this->appendResult = $this->arrowToSql($closure)
-      ->getAppendResult();
-
-    if( $this->appendResult instanceof AppendResult ){
-      try {
-        Database::query( 
-          sprintf( "Insert into %s (%s) values(%s)", 
-            $this->appendResult->table, 
-            $this->appendResult->fields,
-            $this->appendResult->values
-          ), $this->appendResult->params
+    $this->appendResultLists = is_array( $closureOrListArr ) === false
+      ? $this->arrowToSql( $closureOrListArr )->getAppendResult()
+      : $this->arrowToSql( $closureOrListArr )->getAppendResultFromArray( 
+          $this->entity, $closureOrListArr
         );
+    
+    try {
+      foreach( $this->appendResultLists->values as $key => $values ){
+        Database::set( "Set Identity_Insert {$this->appendResultLists->table} On");
+        Database::execute( 
+          sprintf( "Insert into %s (%s) values{$values}", 
+            $this->appendResultLists->table, 
+            $this->appendResultLists->fields
+          ), $this->appendResultLists->params[ $key ]
+        );
+        Database::set( "Set Identity_Insert {$this->appendResultLists->table} Off");
+      }  
 
-        return true;
-      } catch( Exception $exception ){}
-    }
+      return true;
+    } catch( Exception $exception ){
+      print_r( $exception );
+    }      
 
     return false;
   }

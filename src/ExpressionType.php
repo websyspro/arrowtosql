@@ -22,7 +22,7 @@ class ExpressionType
       return NULL;
     }
 
-    if( strtoupper(( string )$value ) === 'NULL' ){
+    if( strtoupper((string)$value ) === 'NULL' ){
       return NULL;
     }    
 

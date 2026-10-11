@@ -576,7 +576,18 @@ extends SqlUtils
     );
 
     return preg_replace("#\s+,#", ",", implode( " ", $tokens ));
-  }  
+  }
+
+  private function keyInstanceOfExpFieldValue(
+    array $tokens
+  ): bool {
+    if( empty( $tokens ) || array_is_list( $tokens ) === false){
+      return false;
+    }
+
+    [ $token ] = $tokens;
+    return $token instanceof ExpFieldValue;
+  }
 
   public function resolveExprAppend(
     MySqlEntityStructure|
@@ -603,8 +614,8 @@ extends SqlUtils
     }
 
     foreach( $entityStructure->columns->items as $column ){
-      foreach( $tokens as $expr ){
-        if( $expr instanceof ExpFieldValue ){
+      if( $this->keyInstanceOfExpFieldValue( $tokens )){
+        foreach( $tokens as $expr ){
           if( is_array( $expr->value ) && empty( $expr->value ) === false ){
             if( $expr->column === $column ){
               [ $exprToken ] = $this->resolveExprValue( $expr->value );
@@ -616,18 +627,26 @@ extends SqlUtils
             }
           }
         }
+      } else {
+        foreach( $tokens as $columnKey => $value ){
+          if( mb_strtolower( $columnKey ) === mb_strtolower( $column )){
+            $fields[ $column ] = $this->expressionType->encode(
+              $value, $entityStructure->types->items[ $column ]
+            );
+          }
+        }
       }
     }
 
     $this->params = $this->filter(
       $fields, fn(string|array|null $value) => (
-        $value !== [] && $value !== null
+        $value !== []
       )
     );
 
     return array_keys( array_filter(
       $fields, fn(string|array|null $value) => (
-        $value !== [] && $value !== null
+        $value !== []
       )
     ));
   }  

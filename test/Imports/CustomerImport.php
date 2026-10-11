@@ -7,7 +7,7 @@ class CustomerImport {
 	): array {
 		return [
 			[ "Id" => 1, "Name" => "EMERSON THIAGO SOUSA ALBUQUERQUE", "Cpf" => "920.220.223-00", "LastPurchaseAt" => "02/04/2023 08:16:57", "CreatedAt" => "23/03/2023 14:43:03" ],
-			[ "Id" => 2, "Name" => "EMERSON THIAGO SOUSA ALBUQUERQUE", "Cpf" => "474.976.394-20", "LastPurchaseAt" => "02/04/2023 08:16:57", "CreatedAt" => "25/03/2023 16:41:01" ],
+			[ "Id" => 2, "Name" => "EMERSON THIAGO SOUSA ALBUQUERQUE", "Cpf" => null, "LastPurchaseAt" => "02/04/2023 08:16:57", "CreatedAt" => "25/03/2023 16:41:01" ],
 			[ "Id" => 3, "Name" => "EMERSON THIAGO", "Cpf" => "609.476.663-62", "LastPurchaseAt" => "02/04/2023 08:16:57", "CreatedAt" => "25/03/2023 17:13:24" ],
 			[ "Id" => 4, "Name" => "EMERSON THIAGO SOUSA ALBUQUERQUE", "Cpf" => "101.297.102-37", "LastPurchaseAt" => "02/04/2023 08:16:57", "CreatedAt" => "26/03/2023 11:48:08" ],
 			[ "Id" => 5, "Name" => "EMERSON THIAGO", "Cpf" => "598.010.006-78", "LastPurchaseAt" => "02/04/2023 08:16:57", "CreatedAt" => "26/03/2023 11:53:46" ],
