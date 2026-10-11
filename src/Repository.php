@@ -97,21 +97,24 @@ class Repository
     
     try {
       foreach( $this->appendResultLists->values as $key => $values ){
-        Database::set( "Set Identity_Insert {$this->appendResultLists->table} On");
+        if( Database::driverIsSqlServer() ){
+          Database::setIdentityInsert( $this->appendResultLists->table, true );
+        }
+        
         Database::execute( 
           sprintf( "Insert into %s (%s) values{$values}", 
             $this->appendResultLists->table, 
             $this->appendResultLists->fields
           ), $this->appendResultLists->params[ $key ]
         );
-        Database::set( "Set Identity_Insert {$this->appendResultLists->table} Off");
+
+        if( Database::driverIsSqlServer()){
+          Database::setIdentityInsert( $this->appendResultLists->table, false );
+        }
       }  
 
       return true;
-    } catch( Exception $exception ){
-      print_r( $exception );
-    }      
-
+    } catch( Exception $exception ){}      
     return false;
   }
 

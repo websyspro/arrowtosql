@@ -29,9 +29,9 @@ function schemaManager(
 ): MySqlSchemaManager|PostgresSchemaManager|SqlServerSchemaManager|SqLiteSchemaManager {
   return match( Database::driver() ){
     DriverType::MySql => new MySqlSchemaManager( new MySqlEntityStructure($rf), new MySqlEntityStructurePersisteds($rf)),
-    DriverType::PostgreSQL => new PostgresSchemaManager( new PostgresEntityStructure($rf), new PostgresEntityStructurePersisteds($rf)),
+    DriverType::Postgres => new PostgresSchemaManager( new PostgresEntityStructure($rf), new PostgresEntityStructurePersisteds($rf)),
     DriverType::SqlServer => new SqlServerSchemaManager( new SqlServerEntityStructure($rf), new SqlServerEntityStructurePersisteds($rf)),
-    DriverType::Sqlite => new SqLiteSchemaManager( new SqLiteEntityStructure($rf), new SqLiteEntityStructurePersisteds($rf))
+    DriverType::SqLite => new SqLiteSchemaManager( new SqLiteEntityStructure($rf), new SqLiteEntityStructurePersisteds($rf))
   };
 }
 

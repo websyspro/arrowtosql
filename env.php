@@ -17,7 +17,7 @@ if( defined( "CONNECT_DETAILS_MYSQL" ) === false ){
 
 if( defined( "CONNECT_DETAILS_POSTGRES" ) === false ){
   define( "CONNECT_DETAILS_POSTGRES", (object)[
-    "driver" => DriverType::PostgreSQL, 
+    "driver" => DriverType::Postgres, 
     "host" => "localhost", 
     "port" => "5434", 
     "name" => "app",
@@ -39,7 +39,7 @@ if( defined( "CONNECT_DETAILS_SQL_SERVER" ) === false ){
 
 if( defined( "CONNECT_DETAILS_SQLITE" ) === false ){
   define( "CONNECT_DETAILS_SQLITE", (object)[
-    "driver" => DriverType::Sqlite, 
+    "driver" => DriverType::SqLite, 
     "name" => "db.sqlite"
   ]);
 }

@@ -2,7 +2,7 @@
 
 namespace Websyspro\ArrowToSql;
 
-class PostgresSqlScriptDialect
+class PostgresScriptDialect
 extends AbstractScriptDialect
 {
   public function resolveMethodToDate(

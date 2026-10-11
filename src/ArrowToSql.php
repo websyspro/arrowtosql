@@ -229,13 +229,13 @@ extends SqlUtils
     }
 
     $this->entityStructure = match( Database::driver() ){
-      DriverType::PostgreSQL => new PostgresEntityStructure( 
+      DriverType::Postgres => new PostgresEntityStructure( 
         new ReflectionClass( $entityClass )
       ),
       DriverType::SqlServer => new SqlServerEntityStructure(
         new ReflectionClass( $entityClass )
       ),
-      DriverType::Sqlite => new SqLiteEntityStructure(
+      DriverType::SqLite => new SqLiteEntityStructure(
         new ReflectionClass( $entityClass )
       ),
       DriverType::MySql => new MySqlEntityStructure( 
@@ -928,16 +928,16 @@ extends SqlUtils
   }
 
   private function resolveDialect(
-  ): MySqlScriptDialect|SqlLiteScriptDialect|SqlServerScriptDialect|PostgresSqlScriptDialect {
+  ): MySqlScriptDialect|SqlLiteScriptDialect|SqlServerScriptDialect|PostgresScriptDialect {
     if( isset( $this->scriptDialect )){
       return $this->scriptDialect;
     }
 
     return $this->scriptDialect = match( Database::driver()){
       DriverType::MySql => new MySqlScriptDialect( $this->expressionType, $this->statics ),
-      DriverType::Sqlite => new SqlLiteScriptDialect( $this->expressionType, $this->statics ),
-      DriverType::SqlServer => new SqlServerScriptDialect( $this->expressionType, $this->statics ),
-      DriverType::PostgreSQL => new PostgresSqlScriptDialect( $this->expressionType, $this->statics ),
+      DriverType::SqLite => new SqlLiteScriptDialect( $this->expressionType, $this->statics ),
+      DriverType::Postgres => new PostgresScriptDialect( $this->expressionType, $this->statics ),
+      DriverType::SqlServer => new SqlServerScriptDialect( $this->expressionType, $this->statics )
     };
   }
 
