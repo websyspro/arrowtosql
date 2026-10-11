@@ -167,7 +167,7 @@ extends SqlUtils
 
     $this->expression = $this->mapper(
       $this->expression, fn( PhpToken $phpToken ) => new ExpToken( 
-        $phpToken->id, $phpToken->text, $this->resolveTokenName( $phpToken->id )
+        $phpToken->id, trim( $phpToken->text, "\"" ), $this->resolveTokenName( $phpToken->id )
       )
     );    
 

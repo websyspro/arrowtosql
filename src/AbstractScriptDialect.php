@@ -79,7 +79,7 @@ extends SqlUtils
       return $column;
     }
 
-    return "{$column} As {$expr->table}.{$method->args[0]->value}";
+    return "{$column} As {$expr->table}_{$method->args[0]->value}";
   }  
 
   public function resolveExprFieldMethodArr(
@@ -166,8 +166,6 @@ extends SqlUtils
             $tokensOuts = array_splice( $tokens, $i, 4 );
             array_splice( $tokens, $i, 0, [ $tokensOuts[ 2 ]]); $i--;
           }
-        } else {
-          $tokens[$i]->value = "NULL";
         }
       }   
     }

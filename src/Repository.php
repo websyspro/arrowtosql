@@ -136,7 +136,13 @@ class Repository
   }
   
   public function rows(
-  ): Collection {
-    return new Collection();
+  ): mixed {
+    return Database::query(
+      sprintf( 
+        "select %s from Document where %s", 
+          $this->selectResult->script,
+          $this->whereResult->script
+      ), $this->whereResult->params
+    );
   }
 }
