@@ -1,5 +1,7 @@
 <?php
 
+set_time_limit(0);
+
 enum fileAction {
   case Create;
   case Repository;

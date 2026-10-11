@@ -477,9 +477,7 @@ extends SqlUtils
     return new ExpFieldValue(
       $entityStructure->getEntityAlias(),
       $entityStructure->getColumnName( $entityStructureColumn ),
-      $entityStructure->getColumnType( $entityStructureColumn ), [
-        $tokenValue
-      ]
+      $entityStructure->getColumnType( $entityStructureColumn ), $tokenValue
     );
   }  
 

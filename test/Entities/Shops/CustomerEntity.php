@@ -17,5 +17,5 @@ extends BaseIncrementEntity
   #[Length(14)]
   #[Unique()]
   public ColumnText $cpf;  
-  public ColumnDatetime $LastPurchaseAt;
+  public ColumnDatetime $lastPurchaseAt;
 }

@@ -17,12 +17,14 @@ class ExpressionType
   public function encode(
     mixed $value,
     string $type
-  ): string {
+  ): mixed {
     if( $value === null ){
-      if( strtoupper(( string )$value ) === 'NULL' ){
-        return "NULL";
-      }
+      return NULL;
     }
+
+    if( strtoupper(( string )$value ) === 'NULL' ){
+      return NULL;
+    }    
 
     if( $type === ColumnDate::class ){
       return $this->encodeDate( $value );

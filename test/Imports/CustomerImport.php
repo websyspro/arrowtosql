@@ -2,7 +2,7 @@
 
 namespace Websyspro\Test\Imports;
 
-class CustumerImport {
+class CustomerImport {
 	public static function rows(
 	): array {
 		return [

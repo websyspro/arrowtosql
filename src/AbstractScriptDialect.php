@@ -34,6 +34,7 @@ use function count;
 use function is_string;
 use function is_array;
 use function is_object;
+use function is_null;
 
 class AbstractScriptDialect
 extends SqlUtils
@@ -148,10 +149,13 @@ extends SqlUtils
             trim( $value, "$\"" )
           } ?? null;
         }
-        
+
         if( $staticValue !== null ){
           if( is_string( $staticValue )){
             $tokens[$i]->value = $staticValue;
+          } else
+          if( is_numeric( $staticValue )){
+              $tokens[$i]->value = (string)$staticValue;
           } else
           if( is_object( $staticValue )){
             $statics = $staticValue;
@@ -162,6 +166,8 @@ extends SqlUtils
             $tokensOuts = array_splice( $tokens, $i, 4 );
             array_splice( $tokens, $i, 0, [ $tokensOuts[ 2 ]]); $i--;
           }
+        } else {
+          $tokens[$i]->value = "NULL";
         }
       }   
     }
@@ -601,10 +607,7 @@ extends SqlUtils
         if( $expr instanceof ExpFieldValue ){
           if( is_array( $expr->value ) && empty( $expr->value ) === false ){
             if( $expr->column === $column ){
-              [ $exprToken ] = $this->resolveExprValue( 
-                $expr->value[0]
-              );
-
+              [ $exprToken ] = $this->resolveExprValue( $expr->value );
               if( $exprToken instanceof ExpToken ){
                 $fields[ $column ] = $this->expressionType->encode(
                   $exprToken->value, $expr->type
@@ -617,13 +620,15 @@ extends SqlUtils
     }
 
     $this->params = $this->filter(
-      $fields, fn(string|array $value) => (
-        $value !== []
+      $fields, fn(string|array|null $value) => (
+        $value !== [] && $value !== null
       )
     );
 
     return array_keys( array_filter(
-      $fields, fn(string|array $value) => $value !== []
+      $fields, fn(string|array|null $value) => (
+        $value !== [] && $value !== null
+      )
     ));
   }  
 
