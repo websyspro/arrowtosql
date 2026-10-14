@@ -114,9 +114,9 @@ extends SqlUtils
     bool $depth = false
   ): string {
     if( $expr instanceof ExpField ){
-      if( $depth === false ){
-        $methods = $this->resolveExprFieldMethodArr($expr);
-      }
+      $methods = $depth === false 
+        ? $this->resolveExprFieldMethodArr($expr) 
+        : [];
 
       $column = sprintf( "%s.%s", $expr->table, $expr->column );
       foreach( $methods as $method ){

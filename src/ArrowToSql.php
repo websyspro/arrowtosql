@@ -31,13 +31,9 @@ use Websyspro\ArrowToSql\Expressions\ExpSubQuery;
 use Websyspro\ArrowToSql\Expressions\ExpToken;
 use Websyspro\ArrowToSql\Expressions\ExpUnary;
 use Websyspro\ArrowToSql\Expressions\ExpValue;
-use Websyspro\Connection\Database;
 use Websyspro\Connection\Enums\DriverType;
-use Websyspro\Entity\Schemas\MySqlEntityStructure;
-use Websyspro\Entity\Schemas\PostgresEntityStructure;
-use Websyspro\Entity\Schemas\SqLiteEntityStructure;
-use Websyspro\Entity\Schemas\SqlServerEntityStructure;
 use Websyspro\Entity\Types\ColumnFlag;
+use Websyspro\Connection\Database;
 use function defined;
 use function sprintf;
 use function count;
@@ -73,7 +69,6 @@ extends SqlUtils
 {
   private ReflectionFunction $reflection;
   private ExpressionType $expressionType;
-  private MySqlEntityStructure|SqlServerEntityStructure|PostgresEntityStructure|SqLiteEntityStructure $entityStructure;
   private array $rows = [];
   public array $uses = [];
   public array $statics = [];
@@ -85,7 +80,8 @@ extends SqlUtils
   private mixed $scriptDialect;
 
   public function __construct(
-    private Closure|array $closure  
+    private Closure|array $closure,
+    private Repository $repository
   ){}
 
   private function resolveExpressionType(
@@ -180,20 +176,6 @@ extends SqlUtils
     );
   } 
 
-  private function resolveEntityStructureByStr(
-    string $entityClass
-  ): MySqlEntityStructure|SqlServerEntityStructure|PostgresEntityStructure|SqLiteEntityStructure {
-    return $this->resolverEntityStructureBase( $entityClass );
-  }  
-
-  private function resolveEntityStructure(
-    array $childs = []
-  ): MySqlEntityStructure|SqlServerEntityStructure|PostgresEntityStructure|SqLiteEntityStructure {
-    return $this->resolveEntityStructureByStr(
-      $this->scopes[ $childs[0]->value ]
-    );
-  }   
-
   private function resolveSubQueryMethod(
     array $tokens = []
   ): string|null {
@@ -212,38 +194,13 @@ extends SqlUtils
   private function resolveSubQueryTable(
     array $tokens = []
   ): string {
-    $tokens = $this->slice(
+    $entity = $this->slice(
       $tokens, $this->indexOf( 
         $tokens, T_FN
       ) + 3, 1
     );
 
-    return $this->resolveEntityStructure($tokens)->getEntityAlias();
-  }
-
-  private function resolverEntityStructureBase(
-    string $entityClass
-  ): mixed {
-    if( isset( $this->entityStructure )){
-      return $this->entityStructure;
-    }
-
-    $this->entityStructure = match( Database::driver() ){
-      DriverType::Postgres => new PostgresEntityStructure( 
-        new ReflectionClass( $entityClass )
-      ),
-      DriverType::SqlServer => new SqlServerEntityStructure(
-        new ReflectionClass( $entityClass )
-      ),
-      DriverType::SqLite => new SqLiteEntityStructure(
-        new ReflectionClass( $entityClass )
-      ),
-      DriverType::MySql => new MySqlEntityStructure( 
-        new ReflectionClass( $entityClass )
-      ),
-    };
-
-    return $this->entityStructure;
+    return $this->repository->getEntityStructureByEntity($entity)->getEntityAlias();
   }
 
   private function resolveScopesAndTokens(
@@ -263,13 +220,6 @@ extends SqlUtils
         $this->scopes[ $tokenVar->value ] = $this->uses[ $tokenEntity->value ];
       }
     );
-    
-    if( empty( $this->scopes ) === false ){
-      [ $entityStructure ] = array_values( $this->scopes );
-      $this->entityStructure = $this->resolverEntityStructureBase(
-        $entityStructure
-      );
-    }
 
     return $this->contextsNotEnds(
       $this->slice( $expression, $this->indexOf( $expression, T_DOUBLE_ARROW ) + 1)
@@ -405,9 +355,8 @@ extends SqlUtils
       return false;
     }
 
-    $entityStructure = $this->resolveEntityStructure( $childs );
     $entityStructureColumns = $this->filter(
-      $entityStructure->columns->items, fn( string $column ) => (
+      $this->repository->getEntityStructure()->columns->items, fn( string $column ) => (
         $column === $childs[2]->value
       )
     );
@@ -446,7 +395,6 @@ extends SqlUtils
   private function resolveField(
     array $childs = []
   ): ExpField {
-    $entityStructure = $this->resolveEntityStructure( $childs );
     $entityStructureColumn = (string)$childs[2]->value;
 
     $columnMethods = $this->mapper(
@@ -464,16 +412,15 @@ extends SqlUtils
     );
 
     return new ExpField(
-      $entityStructure->getEntityAlias(),
-      $entityStructure->getColumnName( $entityStructureColumn ),
-      $entityStructure->getColumnType( $entityStructureColumn ), $columnMethods
+      $this->repository->getEntityStructure()->getEntityAlias(),
+      $this->repository->getEntityStructure()->getColumnName( $entityStructureColumn ),
+      $this->repository->getEntityStructure()->getColumnType( $entityStructureColumn ), $columnMethods
     );
   }
 
   private function resolveFieldValue(
     array $childs = []
   ): ExpFieldValue {
-    $entityStructure = $this->resolveEntityStructure( $childs );
     $entityStructureColumn = (string)$childs[2]->value;
 
     $tokenValue = $this->slice( 
@@ -483,9 +430,9 @@ extends SqlUtils
     );
 
     return new ExpFieldValue(
-      $entityStructure->getEntityAlias(),
-      $entityStructure->getColumnName( $entityStructureColumn ),
-      $entityStructure->getColumnType( $entityStructureColumn ), $tokenValue
+      $this->repository->getEntityStructure()->getEntityAlias(),
+      $this->repository->getEntityStructure()->getColumnName( $entityStructureColumn ),
+      $this->repository->getEntityStructure()->getColumnType( $entityStructureColumn ), $tokenValue
     );
   }  
 
@@ -1082,7 +1029,7 @@ extends SqlUtils
     );
 
     return new ExpMethod(
-      $this->resolveEntityStructureByStr( $scopeStr )->entityNames->alias, $childs[2]->value, $columnMethods, $this->resolveHierarchyColumn(
+      $this->repository->getEntityStructureByEntity( $scopeStr )->entityNames->alias, $childs[2]->value, $columnMethods, $this->resolveHierarchyColumn(
         $this->slice( $childs, $this->indexOf( $childs, T_START_PARENTESES ) + 1, -1 )
       )
     );
@@ -1166,14 +1113,14 @@ extends SqlUtils
   ): void {
     $this->tokens = $this->resolveHierarchyAppend( $this->resolveScopesAndTokens());
     [ $this->script, $this->params ] = [
-      $this->resolveDialect()->resolveExprAppend( $this->entityStructure, $this->tokens ),
+      $this->resolveDialect()->resolveExprAppend( $this->repository->getEntityStructure(), $this->tokens ),
       $this->resolveDialect()->resolveExprParams()
     ];    
   }  
 
   private function resolveAppendAlias(
   ): string {
-    return $this->entityStructure->getEntityAlias();
+    return $this->repository->getEntityStructure()->getEntityAlias();
   }  
 
   private function resolveAppendFields(
@@ -1228,7 +1175,7 @@ extends SqlUtils
       $closureOrListArr, function( array $appendResult ) use( $entity ){
         [ $this->script, $this->params ] = [
           $this->resolveDialect()->resolveExprAppend(
-            $this->resolverEntityStructureBase( $entity ), $appendResult
+            $this->repository->getEntityStructureByEntity( $entity ), $appendResult
           ), $this->resolveDialect()->resolveExprParams()
         ];
 

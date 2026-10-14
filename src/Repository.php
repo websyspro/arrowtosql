@@ -2,10 +2,16 @@
 
 namespace Websyspro\ArrowToSql;
 
+use ReflectionClass;
 use Websyspro\ArrowToSql\Interfaces\AppendResultList;
 use Websyspro\ArrowToSql\Interfaces\ColumnResult;
 use Websyspro\ArrowToSql\Interfaces\WhereResult;
 use Websyspro\Connection\Database;
+use Websyspro\Connection\Enums\DriverType;
+use Websyspro\Entity\Schemas\MySqlEntityStructure;
+use Websyspro\Entity\Schemas\PostgresEntityStructure;
+use Websyspro\Entity\Schemas\SqLiteEntityStructure;
+use Websyspro\Entity\Schemas\SqlServerEntityStructure;
 use function is_array;
 use function sprintf;
 use Exception;
@@ -20,15 +26,48 @@ class Repository
   public ColumnResult $orderByAscResult;
   public ColumnResult $orderByDescResult;
   public AppendResultList $appendResultLists;
+  public MySqlEntityStructure|SqlServerEntityStructure|PostgresEntityStructure|SqLiteEntityStructure $entityStructure;
 
   public function __construct(
     private readonly string $entity
   ){}
 
+  private function getEntityStructureMatch(
+    ReflectionClass $reflectionClass
+  ): MySqlEntityStructure|SqlServerEntityStructure|PostgresEntityStructure|SqLiteEntityStructure {
+    return match( Database::driver()){
+      DriverType::SqlServer => new SqlServerEntityStructure( $reflectionClass ),
+      DriverType::Postgres => new PostgresEntityStructure( $reflectionClass ),
+      DriverType::SqLite => new SqLiteEntityStructure( $reflectionClass ),
+      DriverType::MySql => new MySqlEntityStructure( $reflectionClass ),
+    };   
+  } 
+
+  public function getEntityStructure(
+  ): MySqlEntityStructure|SqlServerEntityStructure|PostgresEntityStructure|SqLiteEntityStructure {
+    if( isset( $this->entityStructure ) === false ){
+      $reflectionClass = new ReflectionClass( $this->entity );
+      if( $reflectionClass instanceof ReflectionClass ){
+        $this->entityStructure = $this->getEntityStructureMatch( $reflectionClass );
+      }
+    }
+
+    return $this->entityStructure;
+  }  
+
+  public function getEntityStructureByEntity(
+    string $entity
+  ): MySqlEntityStructure|SqlServerEntityStructure|PostgresEntityStructure|SqLiteEntityStructure {
+    $reflectionClass = new ReflectionClass( $entity );
+    return $this->getEntityStructureMatch( $reflectionClass );;      
+  }  
+
   private function arrowToSql(
     Closure|array $closure
   ): ArrowToSql {
-    return new ArrowToSQL($closure);
+    return new ArrowToSQL(
+      $closure, $this
+    );
   }  
 
   public function where(
