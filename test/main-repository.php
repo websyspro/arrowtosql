@@ -31,6 +31,8 @@ try {
 
   $repository->select( 
     fn( DocumentEntity $document ) => [
+      $document->id,
+      $document->sum($document->value)->as( "sum_value" ),
       $document->boxId,
       $document->type,
       $document->observations,

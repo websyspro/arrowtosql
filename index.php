@@ -1,26 +1,26 @@
 <?php
 
-set_time_limit(0);
-
-enum fileAction {
-  case Create;
-  case Repository;
-  case Structure;
-  case Entity;
+enum fileAction:string {
+  case Create = "/create";
+  case Repository = "/repository";
+  case Structure = "/structore";
+  case Entity = "/entity";
 }
 
 require_once __DIR__ . "/vendor/autoload.php";
 require_once __DIR__ . "/env.php";
 
+[ "REQUEST_URI" => $requestUri ] = $_SERVER;
+
 $jsonEncode = json_encode(
-  require_once match( fileAction::{$_GET["fileAction"]} ){
-    fileAction::Create 
+  require_once match( $requestUri ){
+    fileAction::Create->value 
       => __DIR__ . '/test/main-create.php',
-    fileAction::Repository
+    fileAction::Repository->value
       => __DIR__ . '/test/main-repository.php',
-    fileAction::Structure
+    fileAction::Structure->value
       => __DIR__ . '/test/main-structure.php',
-    fileAction::Entity
+    fileAction::Entity->value
       => __DIR__ . '/test/main-entity.php'      
   }
 );

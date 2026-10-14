@@ -110,15 +110,15 @@ extends SqlUtils
   }
 
   public function resolveExprField(
-    ExpField $expr
+    ExpField $expr,
+    bool $depth = false
   ): string {
     if( $expr instanceof ExpField ){
-      $methods = $this->resolveExprFieldMethodArr($expr);
+      if( $depth === false ){
+        $methods = $this->resolveExprFieldMethodArr($expr);
+      }
 
-      $column = sprintf(
-        "%s.%s", $expr->table, $expr->column
-      );
-      
+      $column = sprintf( "%s.%s", $expr->table, $expr->column );
       foreach( $methods as $method ){
         if( $method instanceof ExpFieldMethod ){
           $column = $this->resolveExprFieldMethods(
@@ -500,15 +500,56 @@ extends SqlUtils
   }
 
   private function resolveExprColumnGroup(
-    ExpGroup $expr
+    ExpGroup $expr,
+    bool $depth = false
   ): string {
-    return sprintf( "(%s)", $this->resolveExprColumns( $expr->childs ));
+    return sprintf( "(%s)", $this->resolveExprColumns( $expr->childs, $depth ));
+  }
+
+  private function resolveExprColumnMethodNotExists(
+    ExpMethod|ExpField $expr
+  ): ExpMethod|ExpField {
+    if( empty( $expr->methods )){
+      if( $expr instanceof ExpMethod ){
+        [ $child ] = $expr->childs;
+        if( $child instanceof ExpField ){
+          $expr->methods = [
+            new ExpFieldMethod(
+              MethodList::As->value,
+              MethodType::Alias, [
+                new ExpToken(
+                  T_CONSTANT_ENCAPSED_STRING, $child->column,
+                    $this->resolveTokenName( T_CONSTANT_ENCAPSED_STRING )
+                )
+              ]
+            )
+          ];
+        }
+      } else
+      if( $expr instanceof ExpField ){
+        $expr->methods = [
+          new ExpFieldMethod(
+            MethodList::As->value,
+            MethodType::Alias, [
+              new ExpToken(
+                T_CONSTANT_ENCAPSED_STRING, $expr->column,
+                  $this->resolveTokenName( T_CONSTANT_ENCAPSED_STRING )
+              )
+            ]
+          )
+        ];
+      }
+    }
+
+    return $expr;
   }
   
   private function resolveExprColumnField(
-    ExpField $expr
+    ExpField $expr,
+    bool $depth = false
   ): string {
-    return $this->resolveExprField( $expr );
+    $expr = $this->resolveExprColumnMethodNotExists( $expr );
+    return $this->resolveExprField( $expr, $depth );
   }
 
   private function resolveExprColumnMethodName(
@@ -518,13 +559,15 @@ extends SqlUtils
   }  
 
   private function resolveExprColumnMethod(
-    ExpMethod $expr
+    ExpMethod $expr,
+    bool $depth = false
   ): string {
     $exprMethod = sprintf( "%s(%s)",
       $this->resolveExprColumnMethodName( $expr->name ), 
-      $this->resolveExprColumns( $expr->childs )
+      $this->resolveExprColumns( $expr->childs, true )
     );
 
+    $expr = $this->resolveExprColumnMethodNotExists($expr);
     foreach( $this->resolveExprFieldMethodArr($expr) as $method ){
       if( $method instanceof ExpFieldMethod ){
         $exprMethod = $this->resolveExprFieldMethods(
@@ -549,18 +592,19 @@ extends SqlUtils
   }  
 
   public function resolveExprColumns(
-    array $tokens = []
+    array $tokens = [],
+    bool $depth = false
   ): string {
     $tokens = $this->mapper(
-      $tokens, function( mixed $expr ){
+      $tokens, function( mixed $expr ) use( $depth ) {
         if( $expr instanceof ExpGroup ){
-          return $this->resolveExprColumnGroup( $expr );
+          return $this->resolveExprColumnGroup( $expr, $depth );
         } else
         if( $expr instanceof ExpField ){
-          return $this->resolveExprColumnField( $expr );
+          return $this->resolveExprColumnField( $expr, $depth );
         } else
         if( $expr instanceof ExpMethod ){
-          return $this->resolveExprColumnMethod( $expr );
+          return $this->resolveExprColumnMethod( $expr, $depth );
         } else
         if( $expr instanceof ExpSeparator ){
           return $this->resolveExprColumnSeparator( $expr );

@@ -2,15 +2,10 @@
 
 namespace Websyspro\ArrowToSql;
 
-use Websyspro\ArrowToSql\Interfaces\AppendResult;
 use Websyspro\ArrowToSql\Interfaces\AppendResultList;
-use Websyspro\ArrowToSql\Interfaces\AppendResultScript;
 use Websyspro\ArrowToSql\Interfaces\ColumnResult;
 use Websyspro\ArrowToSql\Interfaces\WhereResult;
 use Websyspro\Connection\Database;
-use Websyspro\Connection\Enums\DriverType;
-use Websyspro\Entity\Schemas\MySqlEntityStructure;
-use Websyspro\Utils\Collection;
 use function is_array;
 use function sprintf;
 use Exception;
