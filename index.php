@@ -3,7 +3,7 @@
 enum fileAction:string {
   case Create = "/create";
   case Repository = "/repository";
-  case Structure = "/structore";
+  case Structure = "/structure";
   case Entity = "/entity";
 }
 

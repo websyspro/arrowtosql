@@ -2,6 +2,7 @@
 
 use Websyspro\ArrowToSql\Repository;
 use Websyspro\Test\Entities\Shops\DocumentEntity;
+use Websyspro\Test\Entities\Shops\DocumentItemEntity;
 use Websyspro\Test\Entities\UserEntity;
 
 $boxId = 5;
@@ -9,9 +10,10 @@ $boxId = 5;
 try {
   $repository = new Repository( DocumentEntity::class );
   $repository->where( fn( DocumentEntity $document ) => (
-    // $document->boxId == $boxId &&
-    $document->state->in( "F" ) &&
-    $document->observations->contains( "Venda Normal" ) 
+    $document->boxId == 6
+    && $document->state->in( "F" ) 
+    && $document->observations->contains( "Venda Normal" ) 
+    && $document->items->any( fn( DocumentItemEntity $item ) => $item->documentId == $document->id )
     // && $document->createdAt->between( "02/04/2023", "10/04/2023" )
 
     // $email == $u->email
@@ -32,11 +34,12 @@ try {
   $repository->select( 
     fn( DocumentEntity $document ) => [
       $document->id,
-      $document->sum($document->value)->as( "sum_value" ),
+      // $document->sum($document->value)->as( "sum_value" ),
       $document->boxId,
       $document->type,
       $document->observations,
       $document->createdAt
+      
       //$document->sum( $document->value )->as( "totalBox" )
       // $document->id,
       // $document->value,

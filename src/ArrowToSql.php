@@ -194,13 +194,15 @@ extends SqlUtils
   private function resolveSubQueryTable(
     array $tokens = []
   ): string {
-    $entity = $this->slice(
+    [ $token ] = $this->slice(
       $tokens, $this->indexOf( 
         $tokens, T_FN
       ) + 3, 1
     );
 
-    return $this->repository->getEntityStructureByEntity($entity)->getEntityAlias();
+    return $this->repository->getEntityStructureByEntity(
+      $this->scopes[ $token->value ]
+    )->getEntityAlias();
   }
 
   private function resolveScopesAndTokens(
@@ -412,9 +414,9 @@ extends SqlUtils
     );
 
     return new ExpField(
-      $this->repository->getEntityStructure()->getEntityAlias(),
-      $this->repository->getEntityStructure()->getColumnName( $entityStructureColumn ),
-      $this->repository->getEntityStructure()->getColumnType( $entityStructureColumn ), $columnMethods
+      $this->repository->getEntityStructureByEntity($this->scopes[ (string)$childs[0]->value ])->getEntityAlias(),
+      $this->repository->getEntityStructureByEntity($this->scopes[ (string)$childs[0]->value ])->getColumnName( $entityStructureColumn ),
+      $this->repository->getEntityStructureByEntity($this->scopes[ (string)$childs[0]->value ])->getColumnType( $entityStructureColumn ), $columnMethods
     );
   }
 
@@ -892,7 +894,6 @@ extends SqlUtils
   ): void {
     $this->tokens = $this->resolveHierarchy( $this->resolveScopesAndTokens());
     $this->tokens = $this->resolveSemantics( $this->tokens );
-
     [ $this->script, $this->params ] = [
       $this->resolveDialect()->resolveExprWhere( $this->tokens ),
       $this->resolveDialect()->resolveExprParams()

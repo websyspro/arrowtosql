@@ -7,9 +7,11 @@ use Websyspro\Entity\Decorators\ForeignKey;
 use Websyspro\Entity\Decorators\Index;
 use Websyspro\Entity\Decorators\Length;
 use Websyspro\Entity\Decorators\Precision;
+use Websyspro\Entity\Decorators\VirtualList;
 use Websyspro\Entity\Types\ColumnBigInt;
 use Websyspro\Entity\Types\ColumnDecimal;
 use Websyspro\Entity\Types\ColumnInt;
+use Websyspro\Entity\Types\ColumnList;
 use Websyspro\Entity\Types\ColumnText;
 
 class DocumentEntity
@@ -59,4 +61,7 @@ extends BaseIncrementEntity
 
   #[Length(255)]
   public ColumnText $observations;
+
+  #[VirtualList(DocumentItemEntity::class)]
+  public ColumnList $items;
 }

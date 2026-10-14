@@ -23,6 +23,7 @@ use Websyspro\ArrowToSql\Expressions\ExpOperator;
 use Websyspro\ArrowToSql\Expressions\ExpSeparator;
 use Websyspro\ArrowToSql\Expressions\ExpSubQuery;
 use Websyspro\ArrowToSql\Expressions\ExpToken;
+use Websyspro\ArrowToSql\Expressions\ExpValue;
 use Websyspro\Entity\Schemas\MySqlEntityStructure;
 use Websyspro\Entity\Schemas\PostgresEntityStructure;
 use Websyspro\Entity\Schemas\SqLiteEntityStructure;
@@ -315,17 +316,27 @@ extends SqlUtils
   public function resolveExprWhereCompare(
     ExpCompare $expr
   ): string {
-    [ $exprField, $exprEqual, $exprValue
+    [ $exprCompareLeft, $exprEqual, $exprCompareRight
     ] = $expr->childs;
 
-    return sprintf( "%s %s %s", 
-      $this->resolveExprField( $exprField ), $exprEqual->value, 
-      $this->resolveParams( 
-        $this->resolveExprValue(
-          $exprValue->childs
-        ), ExpCompare::class, $exprField->type, $this->expressionType
-      )
-    );
+    $hasCompareExistValue = $exprCompareLeft instanceof ExpField && $exprCompareRight instanceof ExpValue 
+                         || $exprCompareLeft instanceof ExpValue && $exprCompareRight instanceof ExpField;
+
+    if( $hasCompareExistValue ){
+      return sprintf( "%s %s %s",
+        $this->resolveExprField( $exprCompareLeft ), $exprEqual->value, 
+        $this->resolveParams( 
+          $this->resolveExprValue(
+            $exprCompareRight->childs
+          ), ExpCompare::class, $exprCompareLeft->type, $this->expressionType
+        )
+      );
+    } else {
+      return sprintf( "%s %s %s",
+        $this->resolveExprField( $exprCompareLeft ), $exprEqual->value, 
+        $this->resolveExprField( $exprCompareRight )
+      );
+    }
   }
   
   private function resolveExprWhereIsNull(

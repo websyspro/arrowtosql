@@ -171,6 +171,12 @@ class Repository
   
   public function rows(
   ): mixed {
+    // var_dump( sprintf( 
+    //   "select %s from Document where %s", 
+    //     $this->selectResult->script,
+    //     $this->whereResult->script
+    // ));
+
     return Database::query(
       sprintf( 
         "select %s from Document where %s", 
