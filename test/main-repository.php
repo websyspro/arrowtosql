@@ -10,8 +10,8 @@ try {
   $repository = new Repository( DocumentEntity::class );
   $repository->where( fn( DocumentEntity $document ) => (
     // $document->boxId == $boxId &&
-    $document->state->in( "C" ) &&
-    $document->observations->contains( "Cancelado pelo Operador" ) 
+    $document->state->in( "F" ) &&
+    $document->observations->contains( "Venda Normal" ) 
     // && $document->createdAt->between( "02/04/2023", "10/04/2023" )
 
     // $email == $u->email
