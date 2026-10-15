@@ -60,6 +60,8 @@ try {
     ]
   );
 
+  $repository->paged(1, 6);
+
   // $repository->groupBy(
   //   fn( DocumentEntity $document ) => [
   //     $document->boxId

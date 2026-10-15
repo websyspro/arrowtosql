@@ -5,6 +5,7 @@ namespace Websyspro\ArrowToSql;
 use ReflectionClass;
 use Websyspro\ArrowToSql\Interfaces\AppendResultList;
 use Websyspro\ArrowToSql\Interfaces\ColumnResult;
+use Websyspro\ArrowToSql\Interfaces\RepositoryResult;
 use Websyspro\ArrowToSql\Interfaces\WhereResult;
 use Websyspro\Connection\Database;
 use Websyspro\Connection\Enums\DriverType;
@@ -19,6 +20,9 @@ use Closure;
 
 class Repository
 {
+  private static $cacheEntityStructure = [];
+  private int $offSet = 12;
+  private int $limit = 1;
   public WhereResult $whereResult;
   public ColumnResult $selectResult;
   public ColumnResult $groupByResult;
@@ -45,21 +49,30 @@ class Repository
 
   public function getEntityStructure(
   ): MySqlEntityStructure|SqlServerEntityStructure|PostgresEntityStructure|SqLiteEntityStructure {
+    if( isset( static::$cacheEntityStructure[ $this->entity ])){
+      return static::$cacheEntityStructure[ $this->entity ];
+    }
+
     if( isset( $this->entityStructure ) === false ){
       $reflectionClass = new ReflectionClass( $this->entity );
       if( $reflectionClass instanceof ReflectionClass ){
-        $this->entityStructure = $this->getEntityStructureMatch( $reflectionClass );
+        static::$cacheEntityStructure[ $this->entity ] = $this->getEntityStructureMatch( $reflectionClass );
       }
     }
 
-    return $this->entityStructure;
+    return static::$cacheEntityStructure[ $this->entity ];
   }  
 
   public function getEntityStructureByEntity(
     string $entity
   ): MySqlEntityStructure|SqlServerEntityStructure|PostgresEntityStructure|SqLiteEntityStructure {
+    if( isset( static::$cacheEntityStructure[ $entity ])){
+      return static::$cacheEntityStructure[ $entity ];
+    }
+
     $reflectionClass = new ReflectionClass( $entity );
-    return $this->getEntityStructureMatch( $reflectionClass );;      
+    static::$cacheEntityStructure[ $entity ] = $this->getEntityStructureMatch( $reflectionClass );
+    return static::$cacheEntityStructure[ $entity ];
   }  
 
   private function arrowToSql(
@@ -174,7 +187,39 @@ class Repository
     Closure $closure
   ): mixed {
     return [];
-  }  
+  }
+
+  private function definePaged(
+  ): string {
+    if( Database::driverIsSqlServer() ){
+      return "OffSet {$this->offSet} Rows Fetch Next {$this->limit} Rows Only";
+    } else return "Limit {$this->offSet} OffSet {$this->limit}";
+  }
+
+  public function paged(
+    int $page, int $limit
+  ): Repository {
+    $this->limit = $limit;
+    $this->offSet = ( $page - 1 ) * $limit;
+
+    return $this;
+  }
+  
+  public function query(
+  ): string {
+    return sprintf( "select %s from Document where %s %s", 
+      $this->selectResult->script,
+      $this->whereResult->script,
+      $this->definePaged()
+    );
+  }
+
+  public function fetch(
+  ): array {
+    return Database::query(
+      $this->query(), $this->whereResult->params
+    );
+  }
 
   public function row(
   ): mixed {
@@ -182,19 +227,9 @@ class Repository
   }
   
   public function rows(
-  ): mixed {
-    // var_dump( sprintf( 
-    //   "select %s from Document where %s", 
-    //     $this->selectResult->script,
-    //     $this->whereResult->script
-    // ));
-
-    return Database::query(
-      sprintf( 
-        "select %s from Document where %s", 
-          $this->selectResult->script,
-          $this->whereResult->script
-      ), $this->whereResult->params
+  ): RepositoryResult {
+    return new RepositoryResult(
+      $this->query(), $this->fetch()
     );
   }
 }

@@ -453,8 +453,8 @@ extends SqlUtils
   private function resolveExprWhereSubQuery(
     ExpSubQuery $expr
   ): string {
-    return sprintf( " %s (Select 1 From %s Where %s)", 
-      match($expr->method){
+    return sprintf( "%s (Select 1 From %s Where %s)", 
+      match( $expr->method ){
         "any" => "Exists",
           default => "" 
       }, $expr->table, $this->resolveExprWhere( $expr->childs )
