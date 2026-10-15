@@ -3,18 +3,22 @@
 use Websyspro\ArrowToSql\Repository;
 use Websyspro\Test\Entities\Shops\DocumentEntity;
 use Websyspro\Test\Entities\Shops\DocumentItemEntity;
-use Websyspro\Test\Entities\UserEntity;
-
-$boxId = 5;
+use Websyspro\Test\Enums\DocumentState;
 
 try {
   $repository = new Repository( DocumentEntity::class );
+  $repository->leftJoin(
+    fn( DocumentEntity $document ) => $document->items
+  );
+  $repository->leftJoin( 
+    fn( DocumentEntity $document ) => $document->items
+  );
   $repository->where( fn( DocumentEntity $document ) => (
-    $document->boxId == 6
-    && $document->state->in( "F" ) 
-    && $document->observations->contains( "Venda Normal" ) 
-    && $document->items->any( fn( DocumentItemEntity $item ) => $item->documentId == $document->id )
-    // && $document->createdAt->between( "02/04/2023", "10/04/2023" )
+    $document->boxId == 3 && 
+    $document->state->in( "F" ) && 
+    $document->observations->contains( "Venda Normal" ) && 
+    $document->items->any( fn( DocumentItemEntity $item ) => $item->documentId == $document->id ) && 
+    $document->createdAt->between( "02/04/2023", "10/04/2023" )
 
     // $email == $u->email
     // && $u->name == null
@@ -37,8 +41,12 @@ try {
       // $document->sum($document->value)->as( "sum_value" ),
       $document->boxId,
       $document->type,
+      $document->value,
+      $document->valueInCash,
+      $document->valueChange,
       $document->observations,
-      $document->createdAt
+      $document->createdAt,
+      $document->updatedAt
       
       //$document->sum( $document->value )->as( "totalBox" )
       // $document->id,

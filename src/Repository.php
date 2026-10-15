@@ -68,6 +68,18 @@ class Repository
     return new ArrowToSQL(
       $closure, $this
     );
+  }
+  
+  public function leftJoin(
+    Closure $closure
+  ): Repository {
+    return $this;
+  }
+
+  public function innerJoin(
+    Closure $closure
+  ): Repository {
+    return $this;
   }  
 
   public function where(
