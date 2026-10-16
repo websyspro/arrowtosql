@@ -3,7 +3,6 @@
 use Websyspro\ArrowToSql\Repository;
 use Websyspro\Test\Entities\Shops\DocumentEntity;
 use Websyspro\Test\Entities\Shops\DocumentItemEntity;
-use Websyspro\Test\Enums\DocumentState;
 
 try {
   $repository = new Repository( DocumentEntity::class );
@@ -60,7 +59,7 @@ try {
     ]
   );
 
-  $repository->paged(1, 6);
+  $repository->paged(1, 2);
 
   // $repository->groupBy(
   //   fn( DocumentEntity $document ) => [

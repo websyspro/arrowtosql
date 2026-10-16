@@ -4,6 +4,7 @@ namespace Websyspro\Test\Entities\Shops;
 
 use Websyspro\Entity\BaseIncrementEntity;
 use Websyspro\Entity\Decorators\ForeignKey;
+use Websyspro\Entity\Decorators\HasOneToOne;
 use Websyspro\Entity\Decorators\Precision;
 use Websyspro\Entity\Types\ColumnBigInt;
 use Websyspro\Entity\Types\ColumnDecimal;
@@ -15,8 +16,14 @@ extends BaseIncrementEntity
   #[ForeignKey(DocumentEntity::class)]
   public ColumnBigInt $documentId;
 
+  #[HasOneToOne(DocumentEntity::class)]
+  public DocumentEntity $document;  
+
   #[ForeignKey(ProductEntity::class)]
   public ColumnBigInt $productId;
+
+  #[HasOneToOne(ProductEntity::class)]
+  public ProductEntity $product;
 
   #[Precision(10,2)]
   public ColumnDecimal $value;
@@ -28,5 +35,5 @@ extends BaseIncrementEntity
   public ColumnDecimal $discount;
 
   #[Precision(10,2)]
-  public ColumnDecimal $totalValue; 
+  public ColumnDecimal $totalValue;
 }

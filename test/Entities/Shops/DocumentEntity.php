@@ -4,13 +4,13 @@ namespace Websyspro\Test\Entities\Shops;
 
 use Websyspro\Entity\BaseIncrementEntity;
 use Websyspro\Entity\Decorators\ForeignKey;
+use Websyspro\Entity\Decorators\HasOneToMany;
+use Websyspro\Entity\Decorators\HasOneToOne;
 use Websyspro\Entity\Decorators\Index;
 use Websyspro\Entity\Decorators\Length;
 use Websyspro\Entity\Decorators\Precision;
-use Websyspro\Entity\Decorators\VirtualList;
 use Websyspro\Entity\Types\ColumnBigInt;
 use Websyspro\Entity\Types\ColumnDecimal;
-use Websyspro\Entity\Types\ColumnInt;
 use Websyspro\Entity\Types\ColumnList;
 use Websyspro\Entity\Types\ColumnText;
 
@@ -28,12 +28,21 @@ extends BaseIncrementEntity
   #[ForeignKey(BoxEntity::class)]
   public ColumnBigInt $boxId;
 
+  #[HasOneToOne(BoxEntity::class)]
+  public BoxEntity $box;  
+
   #[Index(2)]
   #[ForeignKey(OperatorEntity::class)]
   public ColumnBigInt $operatorId;
 
+  #[HasOneToOne(OperatorEntity::class)]
+  public OperatorEntity $operator;
+
   #[ForeignKey(CustomerEntity::class)]
   public ColumnBigInt $customerId;
+
+  #[HasOneToOne(CustomerEntity::class)]
+  public CustomerEntity $customer;  
 
   #[Precision(10,2)]
   public ColumnDecimal $value;
@@ -62,6 +71,6 @@ extends BaseIncrementEntity
   #[Length(255)]
   public ColumnText $observations;
 
-  #[VirtualList(DocumentItemEntity::class)]
-  public ColumnList $items;
+  #[HasOneToMany(DocumentItemEntity::class)]
+  public ColumnList $items;  
 }

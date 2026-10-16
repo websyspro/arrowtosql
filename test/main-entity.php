@@ -6,7 +6,9 @@ use Websyspro\Entity\Schemas\MySqlEntityStructure;
 use Websyspro\Entity\Schemas\PostgresEntityStructure;
 use Websyspro\Entity\Schemas\SqLiteEntityStructure;
 use Websyspro\Entity\Schemas\SqlServerEntityStructure;
+use Websyspro\Test\Entities\Shops\CashMovementEntity;
 use Websyspro\Test\Entities\Shops\DocumentEntity;
+use Websyspro\Test\Entities\Shops\DocumentItemEntity;
 
 function entityStructure(
   ReflectionClass $rf
@@ -22,7 +24,7 @@ function entityStructure(
 try {
   return entityStructure(
     new ReflectionClass(
-      DocumentEntity::class
+      CashMovementEntity::class
     )
   );
 } catch( Throwable $e ){

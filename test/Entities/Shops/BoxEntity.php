@@ -4,6 +4,7 @@ namespace Websyspro\Test\Entities\Shops;
 
 use Websyspro\Entity\BaseIncrementEntity;
 use Websyspro\Entity\Decorators\ForeignKey;
+use Websyspro\Entity\Decorators\HasOneToOne;
 use Websyspro\Entity\Decorators\Index;
 use Websyspro\Entity\Decorators\Length;
 use Websyspro\Entity\Decorators\Precision;
@@ -30,6 +31,9 @@ extends BaseIncrementEntity
   #[ForeignKey(OperatorEntity::class)]
   #[Index(1)]
   public ColumnBigInt $operatorId;
+
+  #[HasOneToOne(OperatorEntity::class)]
+  public OperatorEntity $operator;
 
   #[Length(255)]
   public ColumnText $printer;

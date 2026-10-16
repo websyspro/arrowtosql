@@ -21,8 +21,8 @@ use Closure;
 class Repository
 {
   private static $cacheEntityStructure = [];
-  private int $offSet = 12;
-  private int $limit = 1;
+  private int $offSet = 0;
+  private int $limit = -1;
   public WhereResult $whereResult;
   public ColumnResult $selectResult;
   public ColumnResult $groupByResult;
@@ -190,24 +190,28 @@ class Repository
   }
 
   private function definePaged(
-  ): string {
+  ): string|null {
+    if( $this->limit === -1 && $this->offSet === 0 ){
+      return null;
+    }
+
     if( Database::driverIsSqlServer() ){
       return "OffSet {$this->offSet} Rows Fetch Next {$this->limit} Rows Only";
     } else return "Limit {$this->offSet} OffSet {$this->limit}";
   }
 
   public function paged(
-    int $page, int $limit
+    int $limit,
+    int $offset
   ): Repository {
-    $this->limit = $limit;
-    $this->offSet = ( $page - 1 ) * $limit;
-
+    $this->offSet = $offset;
+    $this->limit = ( $limit - 1 ) * $offset;
     return $this;
   }
   
   public function query(
   ): string {
-    return sprintf( "select %s from Document where %s %s", 
+    return sprintf( "Select %s From Document Where %s %s", 
       $this->selectResult->script,
       $this->whereResult->script,
       $this->definePaged()
