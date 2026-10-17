@@ -6,6 +6,7 @@ class RepositoryResult
 {
   public function __construct(
     public string $sql,
+    public array $joins = [],
     public array $rows = []
   ){}
 }

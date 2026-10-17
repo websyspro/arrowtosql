@@ -7,12 +7,12 @@ use Websyspro\ArrowToSql\Interfaces\AppendResultList;
 use Websyspro\ArrowToSql\Interfaces\ColumnResult;
 use Websyspro\ArrowToSql\Interfaces\RepositoryResult;
 use Websyspro\ArrowToSql\Interfaces\WhereResult;
-use Websyspro\Connection\Database;
 use Websyspro\Connection\Enums\DriverType;
 use Websyspro\Entity\Schemas\MySqlEntityStructure;
 use Websyspro\Entity\Schemas\PostgresEntityStructure;
 use Websyspro\Entity\Schemas\SqLiteEntityStructure;
 use Websyspro\Entity\Schemas\SqlServerEntityStructure;
+use Websyspro\Connection\Database;
 use function is_array;
 use function sprintf;
 use Exception;
@@ -20,9 +20,10 @@ use Closure;
 
 class Repository
 {
-  private static $cacheEntityStructure = [];
   private int $offSet = 0;
   private int $limit = -1;
+  private array $joins = [];
+  private static array $cacheES = [];
   public WhereResult $whereResult;
   public ColumnResult $selectResult;
   public ColumnResult $groupByResult;
@@ -49,30 +50,30 @@ class Repository
 
   public function getEntityStructure(
   ): MySqlEntityStructure|SqlServerEntityStructure|PostgresEntityStructure|SqLiteEntityStructure {
-    if( isset( static::$cacheEntityStructure[ $this->entity ])){
-      return static::$cacheEntityStructure[ $this->entity ];
+    if( isset( static::$cacheES[ $this->entity ])){
+      return static::$cacheES[ $this->entity ];
     }
 
     if( isset( $this->entityStructure ) === false ){
       $reflectionClass = new ReflectionClass( $this->entity );
       if( $reflectionClass instanceof ReflectionClass ){
-        static::$cacheEntityStructure[ $this->entity ] = $this->getEntityStructureMatch( $reflectionClass );
+        static::$cacheES[ $this->entity ] = $this->getEntityStructureMatch( $reflectionClass );
       }
     }
 
-    return static::$cacheEntityStructure[ $this->entity ];
+    return static::$cacheES[ $this->entity ];
   }  
 
   public function getEntityStructureByEntity(
     string $entity
   ): MySqlEntityStructure|SqlServerEntityStructure|PostgresEntityStructure|SqLiteEntityStructure {
-    if( isset( static::$cacheEntityStructure[ $entity ])){
-      return static::$cacheEntityStructure[ $entity ];
+    if( isset( static::$cacheES[ $entity ])){
+      return static::$cacheES[ $entity ];
     }
 
     $reflectionClass = new ReflectionClass( $entity );
-    static::$cacheEntityStructure[ $entity ] = $this->getEntityStructureMatch( $reflectionClass );
-    return static::$cacheEntityStructure[ $entity ];
+    static::$cacheES[ $entity ] = $this->getEntityStructureMatch( $reflectionClass );
+    return static::$cacheES[ $entity ];
   }  
 
   private function arrowToSql(
@@ -82,16 +83,25 @@ class Repository
       $closure, $this
     );
   }
+
+  public function RightJoin(
+    Closure $closure
+  ): Repository {
+    $this->joins[] = new JoinArrowToSql( $closure );
+    return $this;
+  }  
   
   public function leftJoin(
     Closure $closure
   ): Repository {
+    $this->joins[] = new JoinArrowToSql( $closure );
     return $this;
   }
 
   public function innerJoin(
     Closure $closure
   ): Repository {
+    $this->joins[] = new JoinArrowToSql( $closure );
     return $this;
   }  
 
@@ -208,6 +218,11 @@ class Repository
     $this->limit = ( $limit - 1 ) * $offset;
     return $this;
   }
+
+  public function joins(
+  ): array {
+    return $this->joins;
+  }
   
   public function query(
   ): string {
@@ -233,7 +248,9 @@ class Repository
   public function rows(
   ): RepositoryResult {
     return new RepositoryResult(
-      $this->query(), $this->fetch()
+      $this->query(), 
+      $this->joins(),
+      $this->fetch()
     );
   }
 }

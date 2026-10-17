@@ -7,13 +7,15 @@ use Websyspro\Test\Entities\Shops\DocumentItemEntity;
 try {
   $repository = new Repository( DocumentEntity::class );
   $repository->leftJoin(
-    fn( DocumentEntity $document ) => $document->items
-  );
-  $repository->leftJoin( 
-    fn( DocumentEntity $document ) => $document->items
+    fn( DocumentEntity $document ) => (
+      $document->items
+        ->leftJoin( 
+          fn( DocumentItemEntity $item ) => $item->product
+        )
+    )
   );
   $repository->where( fn( DocumentEntity $document ) => (
-    $document->boxId == 3 && 
+    $document->boxId == 4 && 
     $document->state->in( "F" ) && 
     $document->observations->contains( "Venda Normal" ) && 
     $document->items->any( fn( DocumentItemEntity $item ) => $item->documentId == $document->id ) && 

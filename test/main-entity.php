@@ -24,7 +24,7 @@ function entityStructure(
 try {
   return entityStructure(
     new ReflectionClass(
-      CashMovementEntity::class
+      DocumentEntity::class
     )
   );
 } catch( Throwable $e ){

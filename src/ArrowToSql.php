@@ -40,7 +40,6 @@ use function count;
 use function in_array;
 use function sizeof;
 use ReflectionFunction;
-use ReflectionClass;
 use Closure;
 use PhpToken;
 
