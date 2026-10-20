@@ -14,14 +14,10 @@ extends BaseIncrementEntity
 {
   #[ForeignKey(DocumentEntity::class)]
   public ColumnBigInt $documentId;
-
-  #[HasOneToOne(DocumentEntity::class)]
   public DocumentEntity $document;  
 
   #[ForeignKey(ProductEntity::class)]
   public ColumnBigInt $productId;
-
-  #[HasOneToOne(ProductEntity::class)]
   public ProductEntity $product;
 
   #[Precision(10,2)]

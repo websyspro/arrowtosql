@@ -24,8 +24,6 @@ extends BaseIncrementEntity
 
   #[ForeignKey(ProductGroupEntity::class)]
   public ColumnBigInt $productGroupId;
-
-  #[HasOneToOne(ProductGroupEntity::class)]
   public ProductGroupEntity $productGroup;
 
   #[Length(1)]

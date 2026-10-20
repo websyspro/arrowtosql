@@ -3,6 +3,7 @@
 namespace Websyspro\Test\Entities\Shops;
 
 use Websyspro\Entity\BaseIncrementEntity;
+use Websyspro\Entity\Decorators\EntityList;
 use Websyspro\Entity\Decorators\ForeignKey;
 use Websyspro\Entity\Decorators\HasOneToMany;
 use Websyspro\Entity\Decorators\HasOneToOne;
@@ -24,24 +25,18 @@ extends BaseIncrementEntity
   #[Length(1)]
   public ColumnText $state;
 
-  #[Index(2)]
   #[ForeignKey(BoxEntity::class)]
   public ColumnBigInt $boxId;
-
-  #[HasOneToOne(BoxEntity::class)]
   public BoxEntity $box;  
 
-  #[Index(2)]
+
   #[ForeignKey(OperatorEntity::class)]
   public ColumnBigInt $operatorId;
-
-  #[HasOneToOne(OperatorEntity::class)]
   public OperatorEntity $operator;
+
 
   #[ForeignKey(CustomerEntity::class)]
   public ColumnBigInt $customerId;
-
-  #[HasOneToOne(CustomerEntity::class)]
   public CustomerEntity $customer;  
 
   #[Precision(10,2)]
@@ -71,5 +66,6 @@ extends BaseIncrementEntity
   #[Length(255)]
   public ColumnText $observations;
 
-  public ColumnList $items;  
+  #[EntityList(DocumentItemEntity::class)]
+  public EntityList $items;  
 }
