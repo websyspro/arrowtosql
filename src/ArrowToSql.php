@@ -11,7 +11,7 @@ use Websyspro\ArrowToSql\Interfaces\AppendResult;
 use Websyspro\ArrowToSql\Interfaces\AppendResultList;
 use Websyspro\ArrowToSql\Interfaces\ColumnResult;
 use Websyspro\ArrowToSql\Interfaces\IncludeResult;
-use Websyspro\ArrowToSql\Interfaces\JoinsResult;
+use Websyspro\ArrowToSql\Interfaces\JoinResult;
 use Websyspro\ArrowToSql\Interfaces\WhereResult;
 use Websyspro\ArrowToSql\Expressions\ExpBetween;
 use Websyspro\ArrowToSql\Expressions\ExpCompare;
@@ -35,6 +35,7 @@ use Websyspro\ArrowToSql\Expressions\ExpToken;
 use Websyspro\ArrowToSql\Expressions\ExpUnary;
 use Websyspro\ArrowToSql\Expressions\ExpValue;
 use Websyspro\Connection\Enums\DriverType;
+use Websyspro\Entity\Schemas\AbstractEntityStructure;
 use Websyspro\Entity\Types\ColumnFlag;
 use Websyspro\Connection\Database;
 use function defined;
@@ -202,7 +203,7 @@ extends SqlUtils
       ) + 3, 1
     );
 
-    return $this->repository->getEntityStructureByEntity(
+    return $this->repository->getEntityStructureByString(
       $this->scopes[ $token->value ]
     )->getEntityAlias();
   }
@@ -416,9 +417,9 @@ extends SqlUtils
     );
 
     return new ExpField(
-      $this->repository->getEntityStructureByEntity($this->scopes[ (string)$childs[0]->value ])->getEntityAlias(),
-      $this->repository->getEntityStructureByEntity($this->scopes[ (string)$childs[0]->value ])->getColumnName( $entityStructureColumn ),
-      $this->repository->getEntityStructureByEntity($this->scopes[ (string)$childs[0]->value ])->getColumnType( $entityStructureColumn ), $columnMethods
+      $this->repository->getEntityStructureByString($this->scopes[ (string)$childs[0]->value ])->getEntityAlias(),
+      $this->repository->getEntityStructureByString($this->scopes[ (string)$childs[0]->value ])->getColumnName( $entityStructureColumn ),
+      $this->repository->getEntityStructureByString($this->scopes[ (string)$childs[0]->value ])->getColumnType( $entityStructureColumn ), $columnMethods
     );
   }
 
@@ -1032,7 +1033,7 @@ extends SqlUtils
     );
 
     return new ExpMethod(
-      $this->repository->getEntityStructureByEntity( $scopeStr )->entityNames->alias, $childs[2]->value, $columnMethods, $this->resolveHierarchyColumn(
+      $this->repository->getEntityStructureByString( $scopeStr )->entityNames->alias, $childs[2]->value, $columnMethods, $this->resolveHierarchyColumn(
         $this->slice( $childs, $this->indexOf( $childs, T_START_PARENTESES ) + 1, -1 )
       )
     );
@@ -1121,24 +1122,51 @@ extends SqlUtils
   }
 
   private function resolveJoinFromToken(
-    ExpToken $tableMain,
-    ExpToken $tableJoin
-  ): string {
-    return $tableJoin->value;
+    ExpToken $table,
+    ExpToken $left
+  ): JoinResult {
+    $entityFromTable = $this->repository->getEntityStructureByString(
+      $this->scopes[ $table->value ]
+    );
+
+    if( $entityFromTable instanceof AbstractEntityStructure ){
+      if( isset( $entityFromTable->entityLists->items[ $left->value ] )){
+        $entityFromLeft = $this->repository->getEntityStructureByString(
+          $entityFromTable->entityLists->items[ $left->value ]
+        );
+
+        foreach( $entityFromLeft->foreignKeys->items as $column => $fk ){
+          if( $fk->entity->alias === $entityFromTable->entityNames->alias ){
+            return new JoinResult(
+              $entityFromLeft->entityNames->alias, $column,
+              $fk->entity->alias, $fk->references
+            );
+          }
+        }
+      }
+    }
+
+    return new JoinResult();
+  }
+
+  private function resolveColumnsFromToken(
+    ExpToken $table,
+    ExpToken $left
+  ): ColumnResult {
+    return new ColumnResult([], []);
   }
 
   private function resolveIncludesItem(
     array $tokens = []
   ): array {
-    [ $tableMain, $_, $tableJoin
+    [ $table, $_, $left
     ] = $tokens;
 
     return [
       new ExpInclude(
-        $this->scopes[ $tableMain->value ],
-        $this->resolveJoinFromToken( $tableMain, $tableJoin ),
-        $this->scopes,
-        $this->slice( $tokens, 3 ) 
+        $this->resolveJoinFromToken( $table, $left ),
+        $this->resolveColumnsFromToken( $table, $left ),
+        $this->slice( $tokens, 4 ) 
       )
     ];
   }
@@ -1252,7 +1280,7 @@ extends SqlUtils
       $closureOrListArr, function( array $appendResult ) use( $entity ){
         [ $this->script, $this->params ] = [
           $this->resolveDialect()->resolveExprAppend(
-            $this->repository->getEntityStructureByEntity( $entity ), $appendResult
+            $this->repository->getEntityStructureByString( $entity ), $appendResult
           ), $this->resolveDialect()->resolveExprParams()
         ];
 

@@ -24,7 +24,7 @@ function entityStructure(
 try {
   return entityStructure(
     new ReflectionClass(
-      DocumentEntity::class
+      DocumentItemEntity::class
     )
   );
 } catch( Throwable $e ){

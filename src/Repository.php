@@ -9,6 +9,7 @@ use Websyspro\ArrowToSql\Interfaces\IncludeResult;
 use Websyspro\ArrowToSql\Interfaces\RepositoryResult;
 use Websyspro\ArrowToSql\Interfaces\WhereResult;
 use Websyspro\Connection\Enums\DriverType;
+use Websyspro\Entity\Schemas\AbstractEntityStructure;
 use Websyspro\Entity\Schemas\MySqlEntityStructure;
 use Websyspro\Entity\Schemas\PostgresEntityStructure;
 use Websyspro\Entity\Schemas\SqLiteEntityStructure;
@@ -32,7 +33,7 @@ class Repository
   public ColumnResult $orderByAscResult;
   public ColumnResult $orderByDescResult;
   public AppendResultList $appendResultLists;
-  public MySqlEntityStructure|SqlServerEntityStructure|PostgresEntityStructure|SqLiteEntityStructure $entityStructure;
+  public AbstractEntityStructure $entityStructure;
 
   public function __construct(
     private readonly string $entity
@@ -40,7 +41,7 @@ class Repository
 
   private function getEntityStructureMatch(
     ReflectionClass $reflectionClass
-  ): MySqlEntityStructure|SqlServerEntityStructure|PostgresEntityStructure|SqLiteEntityStructure {
+  ): AbstractEntityStructure {
     return match( Database::driver()){
       DriverType::SqlServer => new SqlServerEntityStructure( $reflectionClass ),
       DriverType::Postgres => new PostgresEntityStructure( $reflectionClass ),
@@ -50,7 +51,7 @@ class Repository
   } 
 
   public function getEntityStructure(
-  ): MySqlEntityStructure|SqlServerEntityStructure|PostgresEntityStructure|SqLiteEntityStructure {
+  ): AbstractEntityStructure {
     if( isset( static::$cacheES[ $this->entity ])){
       return static::$cacheES[ $this->entity ];
     }
@@ -65,9 +66,9 @@ class Repository
     return static::$cacheES[ $this->entity ];
   }  
 
-  public function getEntityStructureByEntity(
+  public function getEntityStructureByString(
     string $entity
-  ): MySqlEntityStructure|SqlServerEntityStructure|PostgresEntityStructure|SqLiteEntityStructure {
+  ): AbstractEntityStructure {
     if( isset( static::$cacheES[ $entity ])){
       return static::$cacheES[ $entity ];
     }

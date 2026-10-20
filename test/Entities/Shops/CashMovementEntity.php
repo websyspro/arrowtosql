@@ -20,12 +20,10 @@ extends BaseIncrementEntity
   #[Length(3)]
   public ColumnText $paymentMethod;
 
-  #[Index()]
   #[ForeignKey(DocumentEntity::class)]
   public ColumnBigInt $documentId;
   public DocumentEntity $document;
 
-  #[Index()]
   #[ForeignKey(BoxEntity::class)]
   public ColumnBigInt $boxId;
   public BoxEntity $box;
