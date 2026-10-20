@@ -71,6 +71,5 @@ extends BaseIncrementEntity
   #[Length(255)]
   public ColumnText $observations;
 
-  #[HasOneToMany(DocumentItemEntity::class)]
   public ColumnList $items;  
 }

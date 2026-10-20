@@ -4,14 +4,11 @@ namespace Websyspro\Test\Entities\Shops;
 
 use Websyspro\Entity\BaseIncrementEntity;
 use Websyspro\Entity\Decorators\ForeignKey;
-use Websyspro\Entity\Decorators\HasOneToMany;
-use Websyspro\Entity\Decorators\HasOneToOne;
 use Websyspro\Entity\Decorators\Index;
 use Websyspro\Entity\Decorators\Length;
 use Websyspro\Entity\Decorators\Precision;
 use Websyspro\Entity\Types\ColumnBigInt;
 use Websyspro\Entity\Types\ColumnDecimal;
-use Websyspro\Entity\Types\ColumnInt;
 use Websyspro\Entity\Types\ColumnText;
 
 class CashMovementEntity
@@ -26,15 +23,11 @@ extends BaseIncrementEntity
   #[Index()]
   #[ForeignKey(DocumentEntity::class)]
   public ColumnBigInt $documentId;
-
-  #[HasOneToOne(DocumentEntity::class)]
   public DocumentEntity $document;
 
   #[Index()]
   #[ForeignKey(BoxEntity::class)]
   public ColumnBigInt $boxId;
-
-  #[HasOneToMany(BoxEntity::class)]
   public BoxEntity $box;
 
   #[Precision(10,2)]

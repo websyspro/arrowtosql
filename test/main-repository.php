@@ -6,13 +6,12 @@ use Websyspro\Test\Entities\Shops\DocumentItemEntity;
 
 try {
   $repository = new Repository( DocumentEntity::class );
-  $repository->leftJoin(
-    fn( DocumentEntity $document ) => (
-      $document->items
-        ->leftJoin( 
-          fn( DocumentItemEntity $item ) => $item->product
-        )
-    )
+  $repository->include(
+    fn( DocumentEntity $document ) => $document->items,
+    fn( DocumentEntity $document ) => $document->items
+      ->include( 
+        fn( DocumentItemEntity $documentItem ) => $documentItem->product
+      )
   );
   $repository->where( fn( DocumentEntity $document ) => (
     $document->boxId == 4 && 

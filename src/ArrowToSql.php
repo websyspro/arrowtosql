@@ -6,9 +6,12 @@ use Websyspro\ArrowToSql\Enums\LogicalType;
 use Websyspro\ArrowToSql\Enums\MethodList;
 use Websyspro\ArrowToSql\Enums\MethodType;
 use Websyspro\ArrowToSql\Expressions\ExpFieldValue;
+use Websyspro\ArrowToSql\Expressions\ExpInclude;
 use Websyspro\ArrowToSql\Interfaces\AppendResult;
 use Websyspro\ArrowToSql\Interfaces\AppendResultList;
 use Websyspro\ArrowToSql\Interfaces\ColumnResult;
+use Websyspro\ArrowToSql\Interfaces\IncludeResult;
+use Websyspro\ArrowToSql\Interfaces\JoinsResult;
 use Websyspro\ArrowToSql\Interfaces\WhereResult;
 use Websyspro\ArrowToSql\Expressions\ExpBetween;
 use Websyspro\ArrowToSql\Expressions\ExpCompare;
@@ -1091,6 +1094,80 @@ extends SqlUtils
       $this->script, $this->params
     );
   }
+
+  // JoinsResults
+  private function resolveIncludeRemoveParenteses(
+    array $tokens = []
+  ): array {
+    [ $tokenEnd ] = $this->slice( $tokens, -1 );
+    if( $tokenEnd instanceof ExpToken ){
+      if( $tokenEnd->key === T_COMMA ){
+        $tokens = $this->slice( $tokens, 0, -1 );
+      }
+    }
+
+    [ $tokenStart, $tokenEnd ] = [
+      ...$this->slice( $tokens, 0, 1 ),
+      ...$this->slice( $tokens, -1 )
+    ];
+
+    if( $tokenStart instanceof ExpToken && $tokenEnd instanceof ExpToken ){
+      if( $tokenStart->key === T_START_PARENTESES && $tokenEnd->key === T_END_PARENTESES ){
+        return $this->slice( $tokens, 1, -1 );
+      }
+    }
+
+    return $tokens;
+  }
+
+  private function resolveJoinFromToken(
+    ExpToken $tableMain,
+    ExpToken $tableJoin
+  ): string {
+    return $tableJoin->value;
+  }
+
+  private function resolveIncludesItem(
+    array $tokens = []
+  ): array {
+    [ $tableMain, $_, $tableJoin
+    ] = $tokens;
+
+    return [
+      new ExpInclude(
+        $this->scopes[ $tableMain->value ],
+        $this->resolveJoinFromToken( $tableMain, $tableJoin ),
+        $this->scopes,
+        $this->slice( $tokens, 3 ) 
+      )
+    ];
+  }
+
+  private function resolveIncludes(
+  ): void {
+    $this->tokens = $this->resolveIncludeRemoveParenteses( $this->resolveScopesAndTokens() );
+    $this->tokens = $this->resolveIncludesItem( $this->tokens );
+    [ $this->script, $this->params ] = [
+      $this->tokens, []
+    ];    
+  }
+
+  public function getIncludesResult(
+  ): IncludeResult {
+    $this->resolveExpressionType();
+    $this->resolveReflection();
+    $this->resolveRows();
+    $this->resolveUses();
+    $this->resolveStatics();
+    $this->resolveExpression();
+    $this->resolveIncludes();   
+
+    return new IncludeResult(
+      $this->script
+    );
+  }
+
+  // And JoinsResults
 
   private function resolveHierarchyAppend(
     array $tokens = []

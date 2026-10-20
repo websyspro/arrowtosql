@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "41de20d75dfdc9200ef405fc3afcd46d",
+    "content-hash": "cfb8e7a49ed6b618df5c5e5e6ad8d35c",
     "packages": [
         {
             "name": "websyspro/connection",
@@ -49,16 +49,16 @@
         },
         {
             "name": "websyspro/entity",
-            "version": "1.0.98",
+            "version": "1.0.100",
             "source": {
                 "type": "git",
                 "url": "https://github.com/websyspro/entity.git",
-                "reference": "08def227954dea52787addc9c411ffb026627447"
+                "reference": "ac2e24eefdc5011ca2d547e880298d9766241c85"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/websyspro/entity/zipball/08def227954dea52787addc9c411ffb026627447",
-                "reference": "08def227954dea52787addc9c411ffb026627447",
+                "url": "https://api.github.com/repos/websyspro/entity/zipball/ac2e24eefdc5011ca2d547e880298d9766241c85",
+                "reference": "ac2e24eefdc5011ca2d547e880298d9766241c85",
                 "shasum": ""
             },
             "require": {
@@ -85,9 +85,9 @@
             "description": "Library for managing controllers and services",
             "support": {
                 "issues": "https://github.com/websyspro/entity/issues",
-                "source": "https://github.com/websyspro/entity/tree/1.0.98"
+                "source": "https://github.com/websyspro/entity/tree/1.0.100"
             },
-            "time": "2026-10-16T23:39:06+00:00"
+            "time": "2026-10-19T22:14:36+00:00"
         },
         {
             "name": "websyspro/logger",

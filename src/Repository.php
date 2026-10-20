@@ -5,6 +5,7 @@ namespace Websyspro\ArrowToSql;
 use ReflectionClass;
 use Websyspro\ArrowToSql\Interfaces\AppendResultList;
 use Websyspro\ArrowToSql\Interfaces\ColumnResult;
+use Websyspro\ArrowToSql\Interfaces\IncludeResult;
 use Websyspro\ArrowToSql\Interfaces\RepositoryResult;
 use Websyspro\ArrowToSql\Interfaces\WhereResult;
 use Websyspro\Connection\Enums\DriverType;
@@ -22,7 +23,7 @@ class Repository
 {
   private int $offSet = 0;
   private int $limit = -1;
-  private array $joins = [];
+  public array $includes;
   private static array $cacheES = [];
   public WhereResult $whereResult;
   public ColumnResult $selectResult;
@@ -84,26 +85,16 @@ class Repository
     );
   }
 
-  public function RightJoin(
-    Closure $closure
+  public function include(
+    mixed ...$closures
   ): Repository {
-    $this->joins[] = new JoinArrowToSql( $closure );
-    return $this;
-  }  
-  
-  public function leftJoin(
-    Closure $closure
-  ): Repository {
-    $this->joins[] = new JoinArrowToSql( $closure );
+    $this->includes = array_map(
+      fn( Closure $closure ) => $this->arrowToSql( $closure )
+        ->getIncludesResult(), $closures
+    );
+
     return $this;
   }
-
-  public function innerJoin(
-    Closure $closure
-  ): Repository {
-    $this->joins[] = new JoinArrowToSql( $closure );
-    return $this;
-  }  
 
   public function where(
     Closure $closure
@@ -219,9 +210,9 @@ class Repository
     return $this;
   }
 
-  public function joins(
+  public function includes(
   ): array {
-    return $this->joins;
+    return $this->includes;
   }
   
   public function query(
@@ -249,7 +240,7 @@ class Repository
   ): RepositoryResult {
     return new RepositoryResult(
       $this->query(), 
-      $this->joins(),
+      $this->includes(),
       $this->fetch()
     );
   }

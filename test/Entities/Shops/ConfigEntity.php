@@ -9,7 +9,6 @@ use Websyspro\Entity\Decorators\Precision;
 use Websyspro\Entity\Decorators\Unique;
 use Websyspro\Entity\Types\ColumnBigInt;
 use Websyspro\Entity\Types\ColumnDecimal;
-use Websyspro\Entity\Types\ColumnInt;
 use Websyspro\Entity\Types\ColumnText;
 
 class ConfigEntity
@@ -24,4 +23,5 @@ extends BaseIncrementEntity
 
   #[ForeignKey(BoxEntity::class)]
   public ColumnBigInt $boxId;
+  public BoxEntity $box;
 }
