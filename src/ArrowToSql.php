@@ -2,15 +2,19 @@
 
 namespace Websyspro\ArrowToSql;
 
+use ReflectionClass;
+use Websyspro\ArrowToSql\Enums\JoinType;
 use Websyspro\ArrowToSql\Enums\LogicalType;
 use Websyspro\ArrowToSql\Enums\MethodList;
 use Websyspro\ArrowToSql\Enums\MethodType;
 use Websyspro\ArrowToSql\Expressions\ExpFieldValue;
 use Websyspro\ArrowToSql\Expressions\ExpInclude;
+use Websyspro\ArrowToSql\Expressions\ExpJoin;
 use Websyspro\ArrowToSql\Interfaces\AppendResult;
 use Websyspro\ArrowToSql\Interfaces\AppendResultList;
 use Websyspro\ArrowToSql\Interfaces\ColumnResult;
 use Websyspro\ArrowToSql\Interfaces\IncludeResult;
+use Websyspro\ArrowToSql\Interfaces\JoinDetail;
 use Websyspro\ArrowToSql\Interfaces\JoinResult;
 use Websyspro\ArrowToSql\Interfaces\WhereResult;
 use Websyspro\ArrowToSql\Expressions\ExpBetween;
@@ -79,7 +83,7 @@ extends SqlUtils
   public array $scopes = [];
   public array $tokens = [];
   public array $params = [];
-  public array|string $script;
+  public mixed $script;
   private mixed $scriptDialect;
 
   public function __construct(
@@ -1121,10 +1125,12 @@ extends SqlUtils
     return $tokens;
   }
 
-  private function resolveJoinFromToken(
-    ExpToken $table,
-    ExpToken $left
-  ): JoinResult {
+  private function resolveIncludesDetails(
+    array $tokens = []
+  ): JoinDetail|null {
+    [ $table, $_, $left
+    ] = $tokens;
+
     $entityFromTable = $this->repository->getEntityStructureByString(
       $this->scopes[ $table->value ]
     );
@@ -1137,51 +1143,89 @@ extends SqlUtils
 
         foreach( $entityFromLeft->foreignKeys->items as $column => $fk ){
           if( $fk->entity->alias === $entityFromTable->entityNames->alias ){
-            return new JoinResult(
-              $entityFromLeft->entityNames->alias, $column,
-              $fk->entity->alias, $fk->references
+            return $this->repository->registerIncludeLinear(
+              new JoinDetail(
+                JoinType::List->name,
+                $left->value,
+                $entityFromLeft->getEntityAlias(), $column,
+                $fk->entity->alias, $fk->references,
+                $entityFromLeft->getColumnsSelecteds()
+              )
             );
+          }
+        }
+      } else {
+        $refClass = new ReflectionClass(
+          $this->scopes[ $table->value ]
+        );
+
+        if( $refClass->hasProperty( $left->value )){
+          $entityFromLeft = $this->repository->getEntityStructureByString(
+            $refClass->getProperty( $left->value )->getType()
+          );
+
+          return $this->repository->registerIncludeLinear(
+            new JoinDetail(
+              JoinType::Object->name,
+              $left->value,
+              $entityFromLeft->getEntityAlias(), 
+              $entityFromLeft->getPrimaryKey(), 
+              $entityFromTable->getEntityAlias(), 
+              $entityFromTable->getColumnForeingKeyByAlias(
+                $entityFromLeft->getEntityAlias()
+              ), $entityFromLeft->getColumnsSelecteds()
+            )
+          );
+        }
+      }
+    } 
+    
+    return null;
+  }
+
+  private function resolveIncludesOfChilds(
+    array $tokens = []
+  ): ExpJoin {
+    foreach( $tokens as $i => $token ){
+      if( $token instanceof ExpToken ){
+        if( $token->key === T_OBJECT_OPERATOR ){
+          if( mb_strtolower( $tokens[ $i + 1 ]->value ) === "include" ){
+            return 
+              new ExpJoin(
+                $this->resolveIncludesDetails(
+                  $this->slice( $tokens, 0, $i )
+                ),
+                $this->mapper(
+                  $this->groupByTypes(
+                    [ T_COMMA ], $this->slice( $tokens, $i + 3 ), false
+                  ), fn( array $joinChild ) => (
+                    $this->resolveIncludesOfChilds(
+                      $this->resolveScopesAndTokens( $joinChild )
+                    )
+                  )
+                ),
+              );
           }
         }
       }
     }
 
-    return new JoinResult();
-  }
-
-  private function resolveColumnsFromToken(
-    ExpToken $table,
-    ExpToken $left
-  ): ColumnResult {
-    return new ColumnResult([], []);
-  }
-
-  private function resolveIncludesItem(
-    array $tokens = []
-  ): array {
-    [ $table, $_, $left
-    ] = $tokens;
-
-    return [
-      new ExpInclude(
-        $this->resolveJoinFromToken( $table, $left ),
-        $this->resolveColumnsFromToken( $table, $left ),
-        $this->slice( $tokens, 4 ) 
-      )
-    ];
+    return 
+      new ExpJoin( 
+        $this->resolveIncludesDetails(
+          $tokens
+        ), []
+      );
   }
 
   private function resolveIncludes(
   ): void {
-    $this->tokens = $this->resolveIncludeRemoveParenteses( $this->resolveScopesAndTokens() );
-    $this->tokens = $this->resolveIncludesItem( $this->tokens );
-    [ $this->script, $this->params ] = [
-      $this->tokens, []
-    ];    
+    $this->tokens = $this->resolveIncludeRemoveParenteses( $this->resolveScopesAndTokens());
+    $this->script = $this->resolveIncludesOfChilds( $this->tokens );
   }
 
   public function getIncludesResult(
-  ): IncludeResult {
+  ): mixed {
     $this->resolveExpressionType();
     $this->resolveReflection();
     $this->resolveRows();
@@ -1189,10 +1233,7 @@ extends SqlUtils
     $this->resolveStatics();
     $this->resolveExpression();
     $this->resolveIncludes();   
-
-    return new IncludeResult(
-      $this->script
-    );
+    return $this->script;
   }
 
   // And JoinsResults

@@ -2,9 +2,8 @@
 
 namespace Websyspro\ArrowToSql\Enums;
 
-enum JoinType:string
+enum JoinType
 {
-  case Inner = "Inner Join";
-  case Right = "Right Join";
-  case Left = "Left Join";
+  case List;
+  case Object;
 }

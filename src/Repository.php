@@ -5,7 +5,7 @@ namespace Websyspro\ArrowToSql;
 use ReflectionClass;
 use Websyspro\ArrowToSql\Interfaces\AppendResultList;
 use Websyspro\ArrowToSql\Interfaces\ColumnResult;
-use Websyspro\ArrowToSql\Interfaces\IncludeResult;
+use Websyspro\ArrowToSql\Interfaces\JoinDetail;
 use Websyspro\ArrowToSql\Interfaces\RepositoryResult;
 use Websyspro\ArrowToSql\Interfaces\WhereResult;
 use Websyspro\Connection\Enums\DriverType;
@@ -24,7 +24,8 @@ class Repository
 {
   private int $offSet = 0;
   private int $limit = -1;
-  public array $includes;
+  public array $includesLinears = [];
+  public array $includesRelateds = [];
   private static array $cacheES = [];
   public WhereResult $whereResult;
   public ColumnResult $selectResult;
@@ -86,10 +87,17 @@ class Repository
     );
   }
 
+  public function registerIncludeLinear(
+    JoinDetail $joinDetail
+  ): JoinDetail {
+    $this->includesLinears[] = $joinDetail;
+    return $joinDetail;
+  }  
+
   public function include(
     mixed ...$closures
   ): Repository {
-    $this->includes = array_map(
+    $this->includesRelateds = array_map(
       fn( Closure $closure ) => $this->arrowToSql( $closure )
         ->getIncludesResult(), $closures
     );
@@ -211,10 +219,15 @@ class Repository
     return $this;
   }
 
-  public function includes(
+  public function includesLinears(
   ): array {
-    return $this->includes;
+    return $this->includesLinears;
   }
+
+  public function includesRelateds(
+  ): array {
+    return $this->includesRelateds;
+  }  
   
   public function query(
   ): string {
@@ -241,7 +254,8 @@ class Repository
   ): RepositoryResult {
     return new RepositoryResult(
       $this->query(), 
-      $this->includes(),
+      $this->includesLinears(),
+      $this->includesRelateds(),
       $this->fetch()
     );
   }

@@ -7,10 +7,13 @@ use Websyspro\Test\Entities\Shops\DocumentItemEntity;
 try {
   $repository = new Repository( DocumentEntity::class );
   $repository->include(
-    // fn( DocumentEntity $document ) => $document->items,
+    fn( DocumentEntity $document ) => $document->items,
     fn( DocumentEntity $document ) => $document->items
       ->include( 
-        fn( DocumentItemEntity $documentItem ) => $documentItem->product
+        fn( DocumentItemEntity $documentItem ) => $documentItem->product->include(
+          fn( DocumentEntity $document ) => $document->items,
+          fn( DocumentEntity $document ) => $document->items
+        )
       )
   );
   $repository->where( fn( DocumentEntity $document ) => (
