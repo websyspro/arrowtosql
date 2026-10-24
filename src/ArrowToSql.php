@@ -1149,7 +1149,8 @@ extends SqlUtils
                 $left->value,
                 $entityFromLeft->getEntityAlias(), $column,
                 $fk->entity->alias, $fk->references,
-                $entityFromLeft->getColumnsSelecteds()
+                $entityFromLeft->getColumnsSelecteds(),
+                $entityFromLeft->reflectionClass->getName()
               )
             );
           }
@@ -1173,7 +1174,8 @@ extends SqlUtils
               $entityFromTable->getEntityAlias(), 
               $entityFromTable->getColumnForeingKeyByAlias(
                 $entityFromLeft->getEntityAlias()
-              ), $entityFromLeft->getColumnsSelecteds()
+              ), $entityFromLeft->getColumnsSelecteds(),
+              $entityFromLeft->reflectionClass->getName()
             )
           );
         }

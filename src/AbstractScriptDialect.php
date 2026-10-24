@@ -605,7 +605,7 @@ extends SqlUtils
   public function resolveExprColumns(
     array $tokens = [],
     bool $depth = false
-  ): string {
+  ): array {
     $tokens = $this->mapper(
       $tokens, function( mixed $expr ) use( $depth ) {
         if( $expr instanceof ExpGroup ){
@@ -628,7 +628,11 @@ extends SqlUtils
       }
     );
 
-    return preg_replace("#\s+,#", ",", implode( " ", $tokens ));
+    return array_filter(
+      $tokens, fn(string $column) => (
+        $column !== ","
+      )
+    );
   }
 
   private function keyInstanceOfExpFieldValue(

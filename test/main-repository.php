@@ -3,21 +3,20 @@
 use Websyspro\ArrowToSql\Repository;
 use Websyspro\Test\Entities\Shops\DocumentEntity;
 use Websyspro\Test\Entities\Shops\DocumentItemEntity;
+use Websyspro\Test\Entities\Shops\ProductEntity;
 
 try {
   $repository = new Repository( DocumentEntity::class );
   $repository->include(
-    fn( DocumentEntity $document ) => $document->items,
     fn( DocumentEntity $document ) => $document->items
       ->include( 
         fn( DocumentItemEntity $documentItem ) => $documentItem->product->include(
-          fn( DocumentEntity $document ) => $document->items,
-          fn( DocumentEntity $document ) => $document->items
+          fn( ProductEntity $product ) => $product->productGroup
         )
       )
   );
   $repository->where( fn( DocumentEntity $document ) => (
-    $document->boxId == 4 && 
+    $document->boxId == 6 && 
     $document->state->in( "F" ) && 
     $document->observations->contains( "Venda Normal" ) && 
     $document->items->any( fn( DocumentItemEntity $item ) => $item->documentId == $document->id ) && 
@@ -63,7 +62,7 @@ try {
     ]
   );
 
-  $repository->paged(1, 2);
+  $repository->paged(1, 6);
 
   // $repository->groupBy(
   //   fn( DocumentEntity $document ) => [

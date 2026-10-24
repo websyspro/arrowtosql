@@ -3,20 +3,26 @@
 namespace Websyspro\ArrowToSql;
 
 use ReflectionClass;
+use Websyspro\ArrowToSql\Enums\JoinType;
+use Websyspro\ArrowToSql\Expressions\ExpJoin;
 use Websyspro\ArrowToSql\Interfaces\AppendResultList;
 use Websyspro\ArrowToSql\Interfaces\ColumnResult;
 use Websyspro\ArrowToSql\Interfaces\JoinDetail;
 use Websyspro\ArrowToSql\Interfaces\RepositoryResult;
 use Websyspro\ArrowToSql\Interfaces\WhereResult;
 use Websyspro\Connection\Enums\DriverType;
+use Websyspro\Entity\Decorators\EntityList;
 use Websyspro\Entity\Schemas\AbstractEntityStructure;
 use Websyspro\Entity\Schemas\MySqlEntityStructure;
 use Websyspro\Entity\Schemas\PostgresEntityStructure;
 use Websyspro\Entity\Schemas\SqLiteEntityStructure;
 use Websyspro\Entity\Schemas\SqlServerEntityStructure;
 use Websyspro\Connection\Database;
+use function is_object;
 use function is_array;
 use function sprintf;
+use function strlen;
+use function count;
 use Exception;
 use Closure;
 
@@ -79,6 +85,16 @@ class Repository
     return static::$cacheES[ $entity ];
   }  
 
+  private function defineAliasToString(
+  ): string {
+    return $this->getEntityStructure()->getEntityAlias();
+  }
+
+  private function definePrimaryKey(
+  ): string {
+    return $this->getEntityStructure()->getPrimaryKey();
+  }  
+
   private function arrowToSql(
     Closure|array $closure
   ): ArrowToSql {
@@ -87,20 +103,49 @@ class Repository
     );
   }
 
+  private function joinDetailBase(
+  ): JoinDetail {
+    return new JoinDetail(
+      JoinType::Object->name, null,
+      $this->defineAliasToString(),
+      $this->definePrimaryKey(),
+      null, null, [],
+      $this->entity
+    );
+  }  
+
   public function registerIncludeLinear(
     JoinDetail $joinDetail
   ): JoinDetail {
+    if( empty( $this->includesLinears ) === true ){
+      $this->includesLinears[] = $this->joinDetailBase();
+    }
+
     $this->includesLinears[] = $joinDetail;
     return $joinDetail;
+  }  
+
+  private function joinDetailIncludes(
+    array $closures
+  ): array {
+    return array_map(
+      fn( Closure $closure ) => 
+        $this->arrowToSql( $closure )
+          ->getIncludesResult(), $closures
+    );
   }  
 
   public function include(
     mixed ...$closures
   ): Repository {
-    $this->includesRelateds = array_map(
-      fn( Closure $closure ) => $this->arrowToSql( $closure )
-        ->getIncludesResult(), $closures
-    );
+    $this->includesRelateds = [
+      new ExpJoin(
+        $this->joinDetailBase(),
+        $this->joinDetailIncludes(
+          $closures
+        )
+      )
+    ];
 
     return $this;
   }
@@ -144,14 +189,18 @@ class Repository
   public function orderByAsc(
     Closure $closure
   ): Repository {
-    $this->orderByAscResult = $this->arrowToSql($closure)->getColumnResult();
+    $this->orderByAscResult = $this->arrowToSql($closure)
+      ->getColumnResult();
+
     return $this;
   }
 
   public function orderByDesc(
     Closure $closure
   ): Repository {
-    $this->orderByDescResult = $this->arrowToSql($closure)->getColumnResult();
+    $this->orderByDescResult = $this->arrowToSql($closure)
+      ->getColumnResult();
+      
     return $this;
   }
 
@@ -199,7 +248,62 @@ class Repository
     return [];
   }
 
-  private function definePaged(
+  private function defineSelectedAllsWithIncludes(
+    array $selectedsWithIncludes = []
+  ): string {
+    $selectedsWithIncludes = $this->selectResult->script;
+    if( empty( $this->includesLinears ) === false ){
+      foreach( $this->includesLinears as $includes ){
+        if( empty( $includes->columnsSelecteds ) === false ){
+          $selectedsWithIncludes = [ 
+            ...$selectedsWithIncludes,
+            ...$includes->columnsSelecteds
+          ];
+        }
+      }
+    }
+
+    return implode(
+      ", ", $selectedsWithIncludes
+    );
+  }
+
+  private function defineSelectedAlls(
+  ): string|null {
+    return $this->defineSelectedAllsWithIncludes();
+  }
+
+  private function defineSelectedFromAliasAll(
+  ): string|null {
+    return implode(
+      ", ", array_map(
+      fn( string $columnName ) => preg_replace(
+          "#\s.*_#", " ", $columnName
+        ), $this->selectResult->script
+      )
+    );
+  }  
+
+  private function defineIncludesToString(
+  ): string|null {
+    return implode( " ", array_map(
+      fn( JoinDetail $expJoin ) => 
+        $expJoin->getScript(), 
+      $this->includesLinears
+    ));
+  }
+
+  private function defineWheres(
+  ): string|null {
+    return $this->whereResult->script;
+  }
+
+  private function defineParamsToArray(
+  ): array|null {
+    return $this->whereResult->params;
+  }  
+
+  private function definePageds(
   ): string|null {
     if( $this->limit === -1 && $this->offSet === 0 ){
       return null;
@@ -228,21 +332,287 @@ class Repository
   ): array {
     return $this->includesRelateds;
   }  
-  
-  public function query(
+
+  private function defineScriptBase(
   ): string {
-    return sprintf( "Select %s From Document Where %s %s", 
-      $this->selectResult->script,
-      $this->whereResult->script,
-      $this->definePaged()
+    return "Select %s From ( Select %s From %s Where %s %s ) As %s %s";
+  }
+  
+  public function defineQueryToString(
+  ): string {
+    return sprintf(
+      $this->defineScriptBase(),
+      $this->defineSelectedAlls(),
+      $this->defineSelectedFromAliasAll(),
+      $this->defineAliasToString(),
+      $this->defineWheres(),
+      $this->definePageds(),
+      $this->defineAliasToString(),
+      $this->defineIncludesToString(),
     );
   }
 
-  public function fetch(
+  private function getJoinDetailFromLinear(
+    string $alias
+  ): JoinDetail|null {
+    foreach( $this->includesLinears as $joinDetail ){
+      if( $joinDetail->alias === $alias ){
+        return $joinDetail;
+      }
+    }
+    return null;
+  }
+
+  private function getAliasFromColumnName(
+    string $columnName
+  ): string|null {
+    foreach( $this->includesLinears as $joinDetail ){
+      $prefix = $joinDetail->alias . "_";
+      if( str_starts_with( $columnName, $prefix ) ){
+        return $joinDetail->alias;
+      }
+    }
+    return null;
+  }
+
+  private function castValue(
+    string $typeName,
+    mixed $value
+  ): mixed {
+    if( $value === null ){
+      return null;
+    }
+
+    if( in_array( $typeName, $this->getEntityStructure()->numericColumnsType(), true ) ){
+      return str_contains( (string) $value, "." )
+        ? (float) $value
+        : (int) $value;
+    }
+
+    return $value;
+  }
+
+  private function makeEntity(
+    string $alias,
+    array $fields,
+    ExpJoin|null $expJoin = null
+  ): mixed {
+    // resolve entityClass do JoinDetail correspondente
+    $entityClass = null;
+
+    if( $expJoin !== null ){
+      $entityClass = $expJoin->joinDetail->entityClass;
+    } else {
+      foreach( $this->includesLinears as $joinDetail ){
+        if( $joinDetail->alias === $alias ){
+          $entityClass = $joinDetail->entityClass;
+          break;
+        }
+      }
+    }
+
+    if( $entityClass === null ){
+      return $fields;
+    }
+
+    $object     = new $entityClass();
+    $reflection = new ReflectionClass( $entityClass );
+
+    foreach( $fields as $field => $value ){
+      if( $reflection->hasProperty( $field ) === false ){
+        $object->{ $field } = $value;
+        continue;
+      }
+
+      $propType = $reflection->getProperty( $field )->getType();
+      $typeName = $propType instanceof \ReflectionNamedType
+        ? $propType->getName()
+        : null;
+
+      if( $typeName && class_exists( $typeName ) ){
+        $typeInstance = new $typeName();
+        if( method_exists( $typeInstance, "setValue" ) ){
+          $typeInstance->setValue( $this->castValue( $typeName, $value ) );
+          $object->{ $field } = $typeInstance;
+        } else {
+          $object->{ $field } = $value;
+        }
+      } else {
+        $object->{ $field } = $value;
+      }
+    }
+
+    return $object;
+  }
+
+  private function extractFields(
+    array $row,
+    string $alias,
+    string $primaryKey
   ): array {
-    return Database::query(
-      $this->query(), $this->whereResult->params
+    $fields = [];
+    $prefix = $alias . "_";
+
+    foreach( $row as $columnName => $columnValue ){
+      if( str_starts_with( $columnName, $prefix ) ){
+        $field = substr( $columnName, strlen( $prefix ) );
+        $fields[ $field ] = $columnValue;
+      }
+    }
+
+    if( isset( $fields[ "id" ] ) ){
+      $fields = [ "id" => $fields[ "id" ] ] + $fields;
+    }
+
+    return $fields;
+  }
+
+  private function buildEntityIncludes(
+    array $row,
+    ExpJoin $expJoin,
+    mixed &$entity,
+    bool $isObj
+  ): void {
+    foreach( $expJoin->includes as $childExpJoin ){
+      $childAlias   = $childExpJoin->joinDetail->alias;
+      $childPk      = $childExpJoin->joinDetail->aliasKey;
+      $childCol     = $childExpJoin->joinDetail->column;
+      $childType    = $childExpJoin->joinDetail->type;
+
+      // usa "id" como PK real para detecção de duplicata
+      // aliasKey é a chave de junção (ex: documentId), não a PK da entidade
+      $childRealPk  = "id";
+      $childPkVal   = $row[ "{$childAlias}_{$childRealPk}" ] ?? null;
+
+      if( $childPkVal === null ) continue;
+
+      if( $isObj ){
+        if( isset( $entity->{ $childCol } ) === false ){
+          if( $childType === JoinType::List->name ){
+            $entityList = new EntityList();
+            $entityList->setValue( [] );
+            $entity->{ $childCol } = $entityList;
+          }
+        }
+      } else {
+        if( isset( $entity[ $childCol ] ) === false ){
+          $entity[ $childCol ] = $childType === JoinType::List->name ? [] : null;
+        }
+      }
+
+      if( $childType === JoinType::List->name ){
+        $childList = $isObj
+          ? $entity->{ $childCol }->getValue()
+          : $entity[ $childCol ];
+
+        $childExists = false;
+        foreach( $childList as $childItem ){
+          $childItemPkVal = is_object( $childItem )
+            ? ( $childItem->{ $childRealPk }?->getValue() ?? $childItem->{ $childRealPk } ?? null )
+            : ( $childItem[ $childRealPk ] ?? null );
+
+          if( $childItemPkVal === $childPkVal ){
+            $childExists = true;
+            break;
+          }
+        }
+
+        if( $childExists === false ){
+          $childFields = $this->extractFields( $row, $childAlias, $childPk );
+          $childEntity = $this->makeEntity( $childAlias, $childFields, $childExpJoin );
+          $childIsObj  = is_object( $childEntity );
+
+          $this->buildEntityIncludes( 
+            $row, $childExpJoin, $childEntity, $childIsObj
+          );
+
+          if( $isObj ){
+            $updatedList   = $entity->{ $childCol }->getValue();
+            $updatedList[] = $childEntity;
+            $entity->{ $childCol }->setValue( $updatedList );
+          } else {
+            $entity[ $childCol ][] = $childEntity;
+          }
+        }
+      } else {
+        $alreadySet = $isObj 
+          ? isset( $entity->{ $childCol } ) 
+          : isset( $entity[ $childCol ] );
+
+        if( $alreadySet === false ){
+          $childFields = $this->extractFields( $row, $childAlias, $childPk );
+          $childEntity = $this->makeEntity( $childAlias, $childFields, $childExpJoin );
+          $childIsObj  = is_object( $childEntity );
+
+          $this->buildEntityIncludes( $row, $childExpJoin, $childEntity, $childIsObj );
+
+          if( $isObj ){
+            $entity->{ $childCol } = $childEntity;
+          } else {
+            $entity[ $childCol ] = $childEntity;
+          }
+        }
+      }
+    }
+  }
+
+  private function buildStructure(
+    array $rows,
+    ExpJoin $expJoin,
+    array &$pkIndex = []
+  ): array {
+    $result     = [];
+    $alias      = $expJoin->joinDetail->alias;
+    $primaryKey = $expJoin->joinDetail->aliasKey;
+
+    if( isset( $pkIndex[ $alias ] ) === false ){
+      $pkIndex[ $alias ] = [];
+    }
+
+    foreach( $rows as $rawRow ){
+      $row     = (array) $rawRow;
+      $pkValue = $row[ $alias . "_" . $primaryKey ] ?? null;
+
+      if( $pkValue === null ) continue;
+
+      if( isset( $pkIndex[ $alias ][ $pkValue ] ) === false ){
+        $pkIndex[ $alias ][ $pkValue ] = count( $result );
+        $result[] = $this->makeEntity(
+          $alias, $this->extractFields( $row, $alias, $primaryKey ), $expJoin
+        );
+      }
+
+      $index    = $pkIndex[ $alias ][ $pkValue ];
+      $isObj    = is_object( $result[ $index ] );
+
+      $this->buildEntityIncludes( $row, $expJoin, $result[ $index ], $isObj );
+    }
+
+    return $result;
+  }
+
+  private function defineStructureResultRows(
+    array $rows
+  ): array {
+    if( empty( $this->includesRelateds ) ){
+      return $rows;
+    }
+
+    $pkIndex = [];
+    return $this->buildStructure( 
+      $rows, $this->includesRelateds[0], $pkIndex
     );
+  }
+
+  public function defineFetchToRows(
+    array $rows = []
+  ): array {
+    $rows = Database::query(
+      $this->defineQueryToString(), 
+      $this->defineParamsToArray()
+    );
+
+    return $this->defineStructureResultRows( $rows );
   }
 
   public function row(
@@ -251,12 +621,7 @@ class Repository
   }
   
   public function rows(
-  ): RepositoryResult {
-    return new RepositoryResult(
-      $this->query(), 
-      $this->includesLinears(),
-      $this->includesRelateds(),
-      $this->fetch()
-    );
+  ): array {
+    return $this->defineFetchToRows();
   }
 }

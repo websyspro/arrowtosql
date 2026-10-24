@@ -3,6 +3,7 @@
 namespace Websyspro\ArrowToSql\Expressions;
 
 use Websyspro\ArrowToSql\Interfaces\JoinDetail;
+use function sprintf;
 
 class ExpJoin
 extends AbstractExpType
