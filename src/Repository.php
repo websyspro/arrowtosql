@@ -138,14 +138,21 @@ class Repository
   public function include(
     mixed ...$closures
   ): Repository {
-    $this->includesRelateds = [
-      new ExpJoin(
-        $this->joinDetailBase(),
-        $this->joinDetailIncludes(
-          $closures
+    $newIncludes = $this->joinDetailIncludes( $closures );
+
+    if( empty( $this->includesRelateds ) ){
+      $this->includesRelateds = [
+        new ExpJoin(
+          $this->joinDetailBase(),
+          $newIncludes
         )
-      )
-    ];
+      ];
+    } else {
+      $this->includesRelateds[0] = new ExpJoin(
+        $this->includesRelateds[0]->joinDetail,
+        array_merge( $this->includesRelateds[0]->includes, $newIncludes )
+      );
+    }
 
     return $this;
   }
@@ -295,12 +302,20 @@ class Repository
 
   private function defineWheres(
   ): string|null {
-    return $this->whereResult->script;
+    if( isset( $this->whereResult )){
+      return "Where {$this->whereResult->script}";
+    }
+
+    return null;
   }
 
   private function defineParamsToArray(
-  ): array|null {
-    return $this->whereResult->params;
+  ): array {
+    if( isset( $this->whereResult )){
+      return $this->whereResult->params;
+    }
+  
+    return [];
   }  
 
   private function definePageds(
@@ -335,7 +350,7 @@ class Repository
 
   private function defineScriptBase(
   ): string {
-    return "Select %s From ( Select %s From %s Where %s %s ) As %s %s";
+    return "Select %s From ( Select %s From %s %s %s ) As %s %s";
   }
   
   public function defineQueryToString(
@@ -551,6 +566,20 @@ class Repository
           } else {
             $entity[ $childCol ] = $childEntity;
           }
+        } else {
+          // objeto já existe mas pode ter includes filhos (ex: List) ainda não processados
+          $childEntity = $isObj
+            ? $entity->{ $childCol }
+            : $entity[ $childCol ];
+          $childIsObj = is_object( $childEntity );
+
+          $this->buildEntityIncludes( $row, $childExpJoin, $childEntity, $childIsObj );
+
+          if( $isObj ){
+            $entity->{ $childCol } = $childEntity;
+          } else {
+            $entity[ $childCol ] = $childEntity;
+          }
         }
       }
     }
@@ -595,7 +624,18 @@ class Repository
     array $rows
   ): array {
     if( empty( $this->includesRelateds ) ){
-      return $rows;
+      $joinDetail = $this->joinDetailBase();
+      $alias      = $joinDetail->alias;
+      $primaryKey = $joinDetail->aliasKey;
+
+      return array_map(
+        fn( $rawRow ) => $this->makeEntity(
+          $alias,
+          $this->extractFields( (array) $rawRow, $alias, $primaryKey ),
+          new ExpJoin( $joinDetail )
+        ),
+        $rows
+      );
     }
 
     $pkIndex = [];

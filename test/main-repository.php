@@ -1,79 +1,44 @@
 <?php
 
 use Websyspro\ArrowToSql\Repository;
+use Websyspro\Test\Entities\Shops\BoxEntity;
+use Websyspro\Test\Entities\Shops\CashMovementEntity;
 use Websyspro\Test\Entities\Shops\DocumentEntity;
 use Websyspro\Test\Entities\Shops\DocumentItemEntity;
 use Websyspro\Test\Entities\Shops\ProductEntity;
 
 try {
-  $repository = new Repository( DocumentEntity::class );
-  $repository->include(
-    fn( DocumentEntity $document ) => $document->items
-      ->include( 
-        fn( DocumentItemEntity $documentItem ) => $documentItem->product->include(
-          fn( ProductEntity $product ) => $product->productGroup
+  $repo = new Repository( CashMovementEntity::class );
+  $repo->include( 
+    fn( CashMovementEntity $cm ) => $cm->box->include(
+      fn( BoxEntity $box ) => $box->operator
+    ),
+    fn( CashMovementEntity $cm ) => $cm->document->include(
+      fn( DocumentEntity $dc ) => $dc->items->include(
+        fn( DocumentItemEntity $di ) => $di->product->include(
+          fn( ProductEntity $pr ) => $pr->productGroup
         )
       )
+    )
   );
-  $repository->where( fn( DocumentEntity $document ) => (
-    $document->boxId == 6 && 
-    $document->state->in( "F" ) && 
-    $document->observations->contains( "Venda Normal" ) && 
-    $document->items->any( fn( DocumentItemEntity $item ) => $item->documentId == $document->id ) && 
-    $document->createdAt->between( "02/04/2023", "10/04/2023" )
-
-    // $email == $u->email
-    // && $u->name == null
-    // && !$u->name != "TEST%" 
-    // && !$u->name
-    // && !$u->isDeleted
-    // && $u->deletedAt >= "01/03/2026"
-    // && !$u->deletedAt->toDate()->between( "01/01/2026", "31/01/2026" )
-    // && !$u->name->contains( "TEST 1", "TEST 2" )
-    // && !$u->name->notIn( "TEST 1", "TEST 2" )
-    // && !$u->name == [ "TEST 1", "TEST 2" ]
-    // && "31/03/2026" >= $u->Deleted
-    // && !$u->isActive && ( $u->name == "TEST" )
-    // && !$u->access->any( fn( UserEntity $a ) => $a->isActived )
-  ));
-
-  $repository->select( 
-    fn( DocumentEntity $document ) => [
-      $document->id,
-      // $document->sum($document->value)->as( "sum_value" ),
-      $document->boxId,
-      $document->type,
-      $document->value,
-      $document->valueInCash,
-      $document->valueChange,
-      $document->observations,
-      $document->createdAt,
-      $document->updatedAt
-      
-      //$document->sum( $document->value )->as( "totalBox" )
-      // $document->id,
-      // $document->value,
-      // $document->valueInCash,
-      // $document->valueInCreditCard,
-      // $document->valueInDebitCard,
-      // $document->valueChange,
-      // $u->sum(( $u->id / $u->balance ) * $u->balance )->as( "total" ), 
-      // $u->name->trim()->as( "name" )
+  $repo->where(
+    fn( CashMovementEntity $cm ) => $cm->documentId == 3596
+  );
+  $repo->select( 
+    fn( CashMovementEntity $cm ) => [
+      $cm->id,
+      $cm->type,
+      $cm->paymentMethod,
+      $cm->boxId,
+      $cm->value,
+      $cm->documentId,
+      $cm->observations,
+      $cm->createdAt
     ]
   );
 
-  $repository->paged(1, 6);
-
-  // $repository->groupBy(
-  //   fn( DocumentEntity $document ) => [
-  //     $document->boxId
-  //     // $u->sum(( $u->id / $u->balance ) * $u->balance )->as( "total" ), 
-  //     // $u->name->trim()->as( "name" )
-  //   ]
-  // );
-
-  //$repository->groupBy( fn( DocumentEntity $document ) => $u->document );
-  return [ "success" => true, "content" => $repository->rows() ];
+  $repo->paged(1, 1);
+  return [ "success" => true, "content" => $repo->rows() ];
 
 } catch( Throwable $e ){
   return (object)[ 
