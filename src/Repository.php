@@ -660,25 +660,9 @@ class Repository
     return [];
   }
   
-  private function reset(
-  ): void {
-    $this->offSet = 0;
-    $this->limit = -1;
-    $this->includesLinears = [];
-    $this->includesRelateds = [];
-    unset( $this->whereResult );
-    unset( $this->selectResult );
-    unset( $this->groupByResult );
-    unset( $this->orderByResult );
-    unset( $this->orderByAscResult );
-    unset( $this->orderByDescResult );
-    unset( $this->appendResultLists );
-  }
-
   public function rows(
   ): array {
     $result = $this->defineFetchToRows();
-    $this->reset();
     return $result;
   }
 }
