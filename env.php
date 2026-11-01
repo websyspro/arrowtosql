@@ -40,7 +40,7 @@ if( defined( "CONNECT_DETAILS_SQL_SERVER" ) === false ){
 if( defined( "CONNECT_DETAILS_SQLITE" ) === false ){
   define( "CONNECT_DETAILS_SQLITE", (object)[
     "driver" => DriverType::SqLite, 
-    "name" => "db.sqlite"
+    "name" => "D:/25-Composer/arrowtosql/db.sqlite"
   ]);
 }
 

@@ -2,17 +2,16 @@
 
 use Websyspro\Connection\Database;
 use Websyspro\Connection\Enums\DriverType;
+use Websyspro\Entity\Schemas\AbstractEntityStructure;
 use Websyspro\Entity\Schemas\MySqlEntityStructure;
 use Websyspro\Entity\Schemas\PostgresEntityStructure;
 use Websyspro\Entity\Schemas\SqLiteEntityStructure;
 use Websyspro\Entity\Schemas\SqlServerEntityStructure;
-use Websyspro\Test\Entities\Shops\CashMovementEntity;
 use Websyspro\Test\Entities\Shops\DocumentEntity;
-use Websyspro\Test\Entities\Shops\DocumentItemEntity;
 
 function entityStructure(
   ReflectionClass $rf
-): MySqlEntityStructure|PostgresEntityStructure|SqlServerEntityStructure|SqLiteEntityStructure {
+): AbstractEntityStructure {
   return match( Database::driver() ){
     DriverType::SqlServer => new SqlServerEntityStructure($rf),
     DriverType::Postgres => new PostgresEntityStructure($rf),
@@ -24,7 +23,7 @@ function entityStructure(
 try {
   return entityStructure(
     new ReflectionClass(
-      DocumentItemEntity::class
+      DocumentEntity::class
     )
   );
 } catch( Throwable $e ){
