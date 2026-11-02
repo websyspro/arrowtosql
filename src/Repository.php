@@ -619,7 +619,7 @@ class Repository
         $childExists = false;
         foreach( $childList as $childItem ){
           $childItemPkVal = is_object( $childItem )
-            ? ( $childItem->{ $childRealPk }?->getValue() ?? $childItem->{ $childRealPk } ?? null )
+            ? ( $childItem->{ $childRealPk } ?? null )
             : ( $childItem[ $childRealPk ] ?? null );
 
           if( $childItemPkVal === $childPkVal ){
