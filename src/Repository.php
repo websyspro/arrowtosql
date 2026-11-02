@@ -9,17 +9,15 @@ use Websyspro\ArrowToSql\Expressions\ExpJoin;
 use Websyspro\ArrowToSql\Interfaces\AppendResultList;
 use Websyspro\ArrowToSql\Interfaces\ColumnResult;
 use Websyspro\ArrowToSql\Interfaces\JoinDetail;
-use Websyspro\ArrowToSql\Interfaces\RepositoryResult;
 use Websyspro\ArrowToSql\Interfaces\WhereResult;
 use Websyspro\Connection\Enums\DriverType;
-use Websyspro\Entity\Decorators\EntityList;
-use Websyspro\Entity\Interfaces\ColumnType;
 use Websyspro\Entity\Schemas\AbstractEntityStructure;
 use Websyspro\Entity\Schemas\MySqlEntityStructure;
 use Websyspro\Entity\Schemas\PostgresEntityStructure;
 use Websyspro\Entity\Schemas\SqLiteEntityStructure;
 use Websyspro\Entity\Schemas\SqlServerEntityStructure;
 use Websyspro\Connection\Database;
+use Websyspro\Utils\Collection;
 use function is_object;
 use function is_array;
 use function sprintf;
@@ -427,50 +425,72 @@ class Repository
     return $value;
   }
 
-  private function makeEntity(
+  private function resolveEntityClass(
     string $alias,
-    array $fields,
-    ExpJoin|null $expJoin = null,
-    array $activeIncludes = []
-  ): mixed {
-    // resolve entityClass do JoinDetail correspondente
-    $entityClass = null;
-
+    ExpJoin|null $expJoin
+  ): string|null {
     if( $expJoin !== null ){
-      $entityClass = $expJoin->joinDetail->entityClass;
-    } else {
-      foreach( $this->includesLinears as $joinDetail ){
-        if( $joinDetail->alias === $alias ){
-          $entityClass = $joinDetail->entityClass;
-          break;
-        }
+      return $expJoin->joinDetail->entityClass;
+    }
+
+    foreach( $this->includesLinears as $joinDetail ){
+      if( $joinDetail->alias === $alias ){
+        return $joinDetail->entityClass;
       }
     }
 
-    if( $entityClass === null ){
-      return $fields;
+    return null;
+  }
+
+  private function resolveFieldValue(
+    ReflectionClass $reflection,
+    string $column,
+    mixed $value
+  ): mixed {
+    if( $reflection->hasProperty( $column ) === false ){
+      return $value;
     }
 
-    $reflection      = new ReflectionClass( $entityClass );
-    $entityStructure = $this->getEntityStructureByString( $entityClass );
-    $orderedColumns  = $entityStructure->columnsAlls->items ?? [];
+    $propType = $reflection->getProperty( $column )->getType();
+    $typeName = $propType instanceof \ReflectionNamedType
+      ? $propType->getName()
+      : null;
 
-    // campos extras que não estão na entity (ex: sum(...)->as("value"))
-    $extraFields = array_diff_key( $fields, array_flip( $orderedColumns ) );
+    if( $typeName === null || class_exists( $typeName ) === false ){
+      return $value;
+    }
 
-    // nomes dos campos virtuais que estão ativos no ->include() desta query
-    $activeIncludeColumns = array_map(
-      fn( ExpJoin $inc ) => $inc->joinDetail->column,
-      $activeIncludes
-    );
+    $typeInstance = new $typeName();
 
+    if( method_exists( $typeInstance, "setValue" ) === false ){
+      return $value;
+    }
+
+    $castedValue   = $this->castValue( $typeName, $value );
+    $precisionAttr = $reflection->getProperty( $column )
+      ->getAttributes( \Websyspro\Entity\Decorators\Precision::class );
+
+    if( !empty( $precisionAttr ) && is_float( $castedValue ) ){
+      $scale       = $precisionAttr[0]->newInstance()->scale;
+      $castedValue = round( $castedValue, $scale );
+    }
+
+    return $typeInstance->setValue( $castedValue )->getValue();
+  }
+
+  private function buildStdClass(
+    ReflectionClass $reflection,
+    array $orderedColumns,
+    array $fields,
+    array $activeIncludeColumns,
+    array $extraFields
+  ): \stdClass {
     $object = new \stdClass();
 
-    // 1. inicializa na ordem da Entity apenas as colunas presentes nos fields
-    //    + campos virtuais que estão no ->include() ativo
+    // 1. inicializa na ordem da Entity: campos selecionados + virtuais ativos
     foreach( $orderedColumns as $column ){
-      $isInFields  = array_key_exists( $column, $fields );
-      $isVirtual   = in_array( $column, $activeIncludeColumns, true );
+      $isInFields = array_key_exists( $column, $fields );
+      $isVirtual  = in_array( $column, $activeIncludeColumns, true );
 
       if( $isInFields || $isVirtual ){
         $object->{ $column } = null;
@@ -480,39 +500,7 @@ class Repository
     // 2. preenche os campos que vieram do banco
     foreach( $orderedColumns as $column ){
       if( array_key_exists( $column, $fields ) === false ) continue;
-
-      $value = $fields[ $column ];
-
-      if( $reflection->hasProperty( $column ) ){
-        $propType = $reflection->getProperty( $column )->getType();
-        $typeName = $propType instanceof \ReflectionNamedType
-          ? $propType->getName()
-          : null;
-
-        if( $typeName && class_exists( $typeName ) ){
-          $typeInstance = new $typeName();
-          if( method_exists( $typeInstance, "setValue" ) ){
-            $castedValue = $this->castValue( $typeName, $value );
-
-            // aplica precisão decimal se o campo tiver #[Precision]
-            $precisionAttr = $reflection->getProperty( $column )
-              ->getAttributes( \Websyspro\Entity\Decorators\Precision::class );
-
-            if( !empty( $precisionAttr ) && is_float( $castedValue ) ){
-              $scale       = $precisionAttr[0]->newInstance()->scale;
-              $castedValue = round( $castedValue, $scale );
-            }
-
-            $object->{ $column } = $typeInstance->setValue( $castedValue )->getValue();
-          } else {
-            $object->{ $column } = $value;
-          }
-        } else {
-          $object->{ $column } = $value;
-        }
-      } else {
-        $object->{ $column } = $value;
-      }
+      $object->{ $column } = $this->resolveFieldValue( $reflection, $column, $fields[ $column ] );
     }
 
     // 3. campos extras ao final (aliases de aggregate, colunas calculadas, etc.)
@@ -521,6 +509,37 @@ class Repository
     }
 
     return $object;
+  }
+
+  private function makeEntity(
+    string $alias,
+    array $fields,
+    ExpJoin|null $expJoin = null,
+    array $activeIncludes = []
+  ): \stdClass|array {
+    $entityClass = $this->resolveEntityClass( $alias, $expJoin );
+
+    if( $entityClass === null ){
+      return $fields;
+    }
+
+    $reflection      = new ReflectionClass( $entityClass );
+    $entityStructure = $this->getEntityStructureByString( $entityClass );
+    $orderedColumns  = $entityStructure->columnsAlls->items ?? [];
+    $extraFields     = array_diff_key( $fields, array_flip( $orderedColumns ) );
+
+    $activeIncludeColumns = array_map(
+      fn( ExpJoin $inc ): string => $inc->joinDetail->column ?? "",
+      $activeIncludes
+    );
+
+    return $this->buildStdClass(
+      $reflection,
+      $orderedColumns,
+      $fields,
+      $activeIncludeColumns,
+      $extraFields
+    );
   }
 
   private function extractFields(
@@ -567,14 +586,14 @@ class Repository
       if( $isObj ){
         if( isset( $entity->{ $childCol } ) === false ){
           if( $childType === JoinType::List->name ){
-            $entity->{ $childCol } = new \Websyspro\Utils\Collection();
+            $entity->{ $childCol } = new Collection();
           } else {
             $entity->{ $childCol } = null;
           }
         }
       } else {
         if( isset( $entity[ $childCol ] ) === false ){
-          $entity[ $childCol ] = $childType === JoinType::List->name ? new \Websyspro\Utils\Collection() : null;
+          $entity[ $childCol ] = $childType === JoinType::List->name ? new Collection() : null;
         }
       }
 
@@ -687,8 +706,8 @@ class Repository
         );
       }
 
-      $index    = $pkIndex[ $alias ][ $pkValue ];
-      $isObj    = is_object( $result[ $index ] );
+      $index = $pkIndex[ $alias ][ $pkValue ];
+      $isObj = is_object( $result[ $index ] );
 
       $this->buildEntityIncludes( $row, $expJoin, $result[ $index ], $isObj );
     }
@@ -739,8 +758,8 @@ class Repository
   }
   
   public function rows(
-  ): \Websyspro\Utils\Collection {
-    return new \Websyspro\Utils\Collection(
+  ): Collection {
+    return new Collection(
       $this->defineFetchToRows()
     );
   }
