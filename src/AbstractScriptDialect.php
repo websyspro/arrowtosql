@@ -97,7 +97,7 @@ extends SqlUtils
 
         return [
           "{$column} As {$expr->column}",
-          "{$column} As {$expr->table}_{$method->args[0]->value}"
+          "{$expr->table}.{$expr->column} As {$expr->table}_{$method->args[0]->value}"
         ];
       }
     }
@@ -153,18 +153,13 @@ extends SqlUtils
         ? $this->resolveExprFieldMethodArr($expr) 
         : [];
 
-      if( ColumnResultType::Select === $columnResultType ) {
-        $column = sprintf( "%s.%s", $expr->table, $expr->column );
-        foreach( $methods as $method ){
-          if( $method instanceof ExpFieldMethod ){
-            $column = $this->resolveExprFieldMethods(
-              $column, $expr, $method, $columnResultType
-            );
-          }
-        }
-
-        return $column;
+      if( ColumnResultType::GroupBy === $columnResultType ) {
+        return sprintf( "%s.%s", $expr->table, $expr->column );
       }
+      
+      if( ColumnResultType::OrderBy === $columnResultType ) {
+        return sprintf( "%s.%s", $expr->table, $expr->column );
+      }      
 
       $column = sprintf( "%s.%s", $expr->table, $expr->column );
       foreach( $methods as $method ){

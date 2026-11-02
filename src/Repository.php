@@ -317,6 +317,17 @@ class Repository
     return null;
   }
 
+  private function defineGroupBys(
+  ): string|null {
+    if( isset( $this->groupByResult )){
+      return sprintf( 
+        "Group By %s", implode( ",", $this->groupByResult->script )
+      );
+    }
+
+    return null;
+  }
+
   private function defineParamsToArray(
   ): array {
     if( isset( $this->whereResult )){
@@ -358,7 +369,7 @@ class Repository
 
   private function defineScriptBase(
   ): string {
-    return "Select %s From ( Select %s From %s %s %s ) As %s %s";
+    return "Select %s From ( Select %s From %s %s %s %s ) As %s %s";
   }
   
   public function defineQueryToString(
@@ -369,6 +380,7 @@ class Repository
       $this->defineSelectedFromAliasAll(),
       $this->defineAliasToString(),
       $this->defineWheres(),
+      $this->defineGroupBys(),
       $this->definePageds(),
       $this->defineAliasToString(),
       $this->defineIncludesToString(),
@@ -665,6 +677,8 @@ class Repository
       $this->defineQueryToString(), 
       $this->defineParamsToArray()
     );
+
+    print_r($rows);
 
     return $this->defineStructureResultRows( $rows );
   }
