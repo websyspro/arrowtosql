@@ -567,16 +567,14 @@ class Repository
       if( $isObj ){
         if( isset( $entity->{ $childCol } ) === false ){
           if( $childType === JoinType::List->name ){
-            $entityList = new EntityList();
-            $entityList->setValue( [] );
-            $entity->{ $childCol } = $entityList;
+            $entity->{ $childCol } = new \Websyspro\Utils\Collection();
           } else {
             $entity->{ $childCol } = null;
           }
         }
       } else {
         if( isset( $entity[ $childCol ] ) === false ){
-          $entity[ $childCol ] = $childType === JoinType::List->name ? [] : null;
+          $entity[ $childCol ] = $childType === JoinType::List->name ? new \Websyspro\Utils\Collection() : null;
         }
       }
 
@@ -584,8 +582,8 @@ class Repository
 
       if( $childType === JoinType::List->name ){
         $childList = $isObj
-          ? $entity->{ $childCol }->getValue()
-          : $entity[ $childCol ];
+          ? $entity->{ $childCol }->items
+          : $entity[ $childCol ]->items;
 
         $childExists = false;
         foreach( $childList as $childItem ){
@@ -609,11 +607,9 @@ class Repository
           );
 
           if( $isObj ){
-            $updatedList   = $entity->{ $childCol }->getValue();
-            $updatedList[] = $childEntity;
-            $entity->{ $childCol }->setValue( $updatedList );
+            $entity->{ $childCol }->items[] = $childEntity;
           } else {
-            $entity[ $childCol ][] = $childEntity;
+            $entity[ $childCol ]->items[] = $childEntity;
           }
         }
       } else {
@@ -743,8 +739,9 @@ class Repository
   }
   
   public function rows(
-  ): array {
-    $result = $this->defineFetchToRows();
-    return $result;
+  ): \Websyspro\Utils\Collection {
+    return new \Websyspro\Utils\Collection(
+      $this->defineFetchToRows()
+    );
   }
 }
