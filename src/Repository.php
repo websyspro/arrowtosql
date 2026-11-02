@@ -2,7 +2,6 @@
 
 namespace Websyspro\ArrowToSql;
 
-use ReflectionClass;
 use Websyspro\ArrowToSql\Enums\ColumnResultType;
 use Websyspro\ArrowToSql\Enums\JoinType;
 use Websyspro\ArrowToSql\Expressions\ExpJoin;
@@ -23,6 +22,7 @@ use function is_array;
 use function sprintf;
 use function strlen;
 use function count;
+use ReflectionClass;
 use Exception;
 use Closure;
 

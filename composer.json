@@ -1,6 +1,6 @@
 {
   "name": "websyspro/arrowtosql",
-  "version": "1.0.91",
+  "version": "1.0.92",
   "description": "Convert Arrow FN into SQL queries",
   "minimum-stability": "dev",
   "prefer-stable": true,
