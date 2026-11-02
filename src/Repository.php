@@ -626,6 +626,18 @@ class Repository
       $row     = (array) $rawRow;
       $pkValue = $row[ $alias . "_" . $primaryKey ] ?? null;
 
+      // quando a PK não foi selecionada (ex: groupBy/select customizado),
+      // usa a primeira coluna disponível com o prefixo do alias como chave
+      if( $pkValue === null ){
+        $prefix = $alias . "_";
+        foreach( $row as $colName => $colValue ){
+          if( str_starts_with( $colName, $prefix ) && $colValue !== null ){
+            $pkValue = $colValue;
+            break;
+          }
+        }
+      }
+
       if( $pkValue === null ) continue;
 
       if( isset( $pkIndex[ $alias ][ $pkValue ] ) === false ){
@@ -677,8 +689,6 @@ class Repository
       $this->defineQueryToString(), 
       $this->defineParamsToArray()
     );
-
-    print_r($rows);
 
     return $this->defineStructureResultRows( $rows );
   }
