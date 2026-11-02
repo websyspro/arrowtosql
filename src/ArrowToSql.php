@@ -3,19 +3,17 @@
 namespace Websyspro\ArrowToSql;
 
 use ReflectionClass;
+use ReflectionNamedType;
 use Websyspro\ArrowToSql\Enums\JoinType;
 use Websyspro\ArrowToSql\Enums\LogicalType;
 use Websyspro\ArrowToSql\Enums\MethodList;
 use Websyspro\ArrowToSql\Enums\MethodType;
 use Websyspro\ArrowToSql\Expressions\ExpFieldValue;
-use Websyspro\ArrowToSql\Expressions\ExpInclude;
 use Websyspro\ArrowToSql\Expressions\ExpJoin;
 use Websyspro\ArrowToSql\Interfaces\AppendResult;
 use Websyspro\ArrowToSql\Interfaces\AppendResultList;
 use Websyspro\ArrowToSql\Interfaces\ColumnResult;
-use Websyspro\ArrowToSql\Interfaces\IncludeResult;
 use Websyspro\ArrowToSql\Interfaces\JoinDetail;
-use Websyspro\ArrowToSql\Interfaces\JoinResult;
 use Websyspro\ArrowToSql\Interfaces\WhereResult;
 use Websyspro\ArrowToSql\Expressions\ExpBetween;
 use Websyspro\ArrowToSql\Expressions\ExpCompare;
@@ -1163,20 +1161,19 @@ extends SqlUtils
         if( $refClass->hasProperty( $left->value )){
           $propType = $refClass->getProperty( $left->value )->getType();
 
-          // suporta union types como "OperatorEntity|null"
-          // extrai o primeiro tipo que não seja "null"
+          // resolve o nome da classe a partir de qualquer variação de tipo:
+          // "OperatorEntity", "?OperatorEntity", "OperatorEntity|null"
+          $propTypeName = null;
+
           if( $propType instanceof \ReflectionUnionType ){
-            $propTypeName = null;
             foreach( $propType->getTypes() as $t ){
-              if( $t->getName() !== "null" ){
+              if( $t instanceof ReflectionNamedType && $t->getName() !== "null" ){
                 $propTypeName = $t->getName();
                 break;
               }
             }
-          } else {
-            $propTypeName = $propType instanceof \ReflectionNamedType
-              ? $propType->getName()
-              : (string) $propType;
+          } elseif( $propType instanceof ReflectionNamedType ){
+            $propTypeName = $propType->getName();
           }
 
           $entityFromLeft = $this->repository->getEntityStructureByString(
