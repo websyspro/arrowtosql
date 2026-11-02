@@ -4,6 +4,7 @@ namespace Websyspro\ArrowToSql;
 
 use Websyspro\ArrowToSql\Enums\ColumnResultType;
 use Websyspro\ArrowToSql\Enums\JoinType;
+use Websyspro\ArrowToSql\Enums\OrderByType;
 use Websyspro\ArrowToSql\Expressions\ExpJoin;
 use Websyspro\ArrowToSql\Interfaces\AppendResultList;
 use Websyspro\ArrowToSql\Interfaces\ColumnResult;
@@ -184,31 +185,42 @@ class Repository
     return $this;
   }
 
+  private function registerOrderBy(
+    OrderByType $orderByType,
+    ColumnResult $columnResult
+  ): Repository {
+    foreach( $columnResult->script as $script ){
+      $this->orderByResult[] = "{$script} {$orderByType->name}";
+    }
+
+    return $this;
+  }
+
   public function orderBy(
     Closure $closure
   ): Repository {
-    $this->orderByResult = $this->arrowToSql($closure)
+    $orderByResult = $this->arrowToSql($closure)
       ->getColumnResult( ColumnResultType::OrderBy );
-    
-    return $this;
+
+    return $this->registerOrderBy( OrderByType::Asc, $orderByResult );
   }
   
   public function orderByAsc(
     Closure $closure
   ): Repository {
-    $this->orderByAscResult = $this->arrowToSql($closure)
+    $orderByAscResult = $this->arrowToSql($closure)
       ->getColumnResult( ColumnResultType::OrderBy );
 
-    return $this;
+    return $this->registerOrderBy( OrderByType::Asc, $orderByAscResult );
   }
 
   public function orderByDesc(
     Closure $closure
   ): Repository {
-    $this->orderByDescResult = $this->arrowToSql($closure)
+    $orderByDescResult = $this->arrowToSql($closure)
       ->getColumnResult( ColumnResultType::OrderBy );
       
-    return $this;
+    return $this->registerOrderBy( OrderByType::Desc, $orderByDescResult );
   }
 
   public function create(
@@ -330,11 +342,13 @@ class Repository
   ): string|null {
     if( isset( $this->orderByResult )){
       return sprintf( 
-        "Order By %s", implode( ",", $this->orderByResult->script )
+        "Order By %s", implode( 
+          ",", $this->orderByResult->script
+        )
       );
     }
 
-    return "Order By 1 asc";
+    return "Order By 1 Desc";
   }
 
   private function defineParamsToArray(
