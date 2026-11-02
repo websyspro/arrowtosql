@@ -38,8 +38,6 @@ class Repository
   public WhereResult $whereResult;
   public ColumnResult $selectResult;
   public ColumnResult $groupByResult;
-  public ColumnResult $orderByAscResult;
-  public ColumnResult $orderByDescResult;
   public AppendResultList $appendResultLists;
   public AbstractEntityStructure $entityStructure;
 
@@ -189,7 +187,6 @@ class Repository
     OrderByType $orderByType,
     ColumnResult $columnResult
   ): Repository {
-    print_r($columnResult);
     foreach( $columnResult->script as $script ){
       $this->orderByResult[] = "{$script} {$orderByType->name}";
     }
@@ -341,7 +338,7 @@ class Repository
 
   private function defineOrderBys(
   ): string|null {
-    if( empty( $this->orderByResult )){
+    if( empty( $this->orderByResult ) === false){
       return sprintf( 
         "Order By %s", implode( 
           ",", $this->orderByResult
