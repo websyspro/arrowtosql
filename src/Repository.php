@@ -450,42 +450,56 @@ class Repository
       return $fields;
     }
 
-    $object     = new $entityClass();
-    $reflection = new ReflectionClass( $entityClass );
+    $reflection      = new ReflectionClass( $entityClass );
+    $entityStructure = $this->getEntityStructureByString( $entityClass );
+    $orderedColumns  = $entityStructure->columns->items ?? [];
 
-    foreach( $fields as $field => $value ){
-      if( $reflection->hasProperty( $field ) === false ){
-        $object->{ $field } = $value;
-        continue;
-      }
+    // campos extras que não estão na entity (ex: sum(...)->as("value"))
+    $extraFields = array_diff_key( $fields, array_flip( $orderedColumns ) );
 
-      $propType = $reflection->getProperty( $field )->getType();
-      $typeName = $propType instanceof \ReflectionNamedType
-        ? $propType->getName()
-        : null;
+    $object = new \stdClass();
 
-      if( $typeName && class_exists( $typeName ) ){
-        $typeInstance = new $typeName();
-        if( method_exists( $typeInstance, "setValue" ) ){
-          $castedValue = $this->castValue( $typeName, $value );
+    // 1. campos na ordem definida pela Entity
+    foreach( $orderedColumns as $column ){
+      if( array_key_exists( $column, $fields ) === false ) continue;
 
-          // aplica precisão decimal se o campo tiver #[Precision]
-          $precisionAttr = $reflection->getProperty( $field )
-            ->getAttributes( \Websyspro\Entity\Decorators\Precision::class );
+      $value = $fields[ $column ];
 
-          if( !empty( $precisionAttr ) && is_float( $castedValue ) ){
-            $scale       = $precisionAttr[0]->newInstance()->scale;
-            $castedValue = round( $castedValue, $scale );
+      if( $reflection->hasProperty( $column ) ){
+        $propType = $reflection->getProperty( $column )->getType();
+        $typeName = $propType instanceof \ReflectionNamedType
+          ? $propType->getName()
+          : null;
+
+        if( $typeName && class_exists( $typeName ) ){
+          $typeInstance = new $typeName();
+          if( method_exists( $typeInstance, "setValue" ) ){
+            $castedValue = $this->castValue( $typeName, $value );
+
+            // aplica precisão decimal se o campo tiver #[Precision]
+            $precisionAttr = $reflection->getProperty( $column )
+              ->getAttributes( \Websyspro\Entity\Decorators\Precision::class );
+
+            if( !empty( $precisionAttr ) && is_float( $castedValue ) ){
+              $scale       = $precisionAttr[0]->newInstance()->scale;
+              $castedValue = round( $castedValue, $scale );
+            }
+
+            $object->{ $column } = $typeInstance->setValue( $castedValue )->getValue();
+          } else {
+            $object->{ $column } = $value;
           }
-
-          $typeInstance->setValue( $castedValue );
-          $object->{ $field } = $typeInstance;
         } else {
-          $object->{ $field } = $value;
+          $object->{ $column } = $value;
         }
       } else {
-        $object->{ $field } = $value;
+        $object->{ $column } = $value;
       }
+    }
+
+    // 2. campos extras ao final (aliases de aggregate, colunas calculadas, etc.)
+    foreach( $extraFields as $field => $value ){
+      $object->{ $field } = $value;
     }
 
     return $object;
