@@ -266,8 +266,19 @@ class Repository
   }
 
   private function defineSelectdColumnsByOrder(
-    int $order = 0
+    int $order = 0,
+    array $columnsAsterisc = []
   ): array {
+    if( isset( $this->selectResult ) === false ){
+      foreach( $this->getEntityStructure()->columns->items as $column ){
+        $columnsAsterisc[] = $order === 1
+          ? "{$this->getEntityStructure()->entityNames->alias}.{$column} As {$this->getEntityStructure()->entityNames->alias}_{$column}"
+          : "{$this->getEntityStructure()->entityNames->alias}.{$column}";
+      }
+
+      return $columnsAsterisc;
+    }
+
     return array_map(
       fn( array $script ) => $script[ $order ],
         $this->selectResult->script
@@ -300,7 +311,7 @@ class Repository
     return $this->defineSelectedAllsWithIncludes();
   }
 
-  private function defineSelectedFromAliasAll(
+  private function defineSelectedFromSubQueryAll(
   ): string|null {
     return implode(
       ", ", $this->defineSelectdColumnsByOrder(0)
@@ -398,7 +409,7 @@ class Repository
     return sprintf(
       $this->defineScriptBase(),
       $this->defineSelectedAlls(),
-      $this->defineSelectedFromAliasAll(),
+      $this->defineSelectedFromSubQueryAll(),
       $this->defineAliasToString(),
       $this->defineWheres(),
       $this->defineGroupBys(),
@@ -407,29 +418,6 @@ class Repository
       $this->defineAliasToString(),
       $this->defineIncludesToString(),
     );
-  }
-
-  private function getJoinDetailFromLinear(
-    string $alias
-  ): JoinDetail|null {
-    foreach( $this->includesLinears as $joinDetail ){
-      if( $joinDetail->alias === $alias ){
-        return $joinDetail;
-      }
-    }
-    return null;
-  }
-
-  private function getAliasFromColumnName(
-    string $columnName
-  ): string|null {
-    foreach( $this->includesLinears as $joinDetail ){
-      $prefix = $joinDetail->alias . "_";
-      if( str_starts_with( $columnName, $prefix ) ){
-        return $joinDetail->alias;
-      }
-    }
-    return null;
   }
 
   private function castValue(
