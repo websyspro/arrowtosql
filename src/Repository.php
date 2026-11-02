@@ -499,14 +499,16 @@ class Repository
       $childRealPk  = "id";
       $childPkVal   = $row[ "{$childAlias}_{$childRealPk}" ] ?? null;
 
-      if( $childPkVal === null ) continue;
-
+      // inicializa o campo na entidade pai antes de verificar se há registro filho
+      // isso garante que campos sem correspondência (LEFT JOIN) apareçam como null ou []
       if( $isObj ){
         if( isset( $entity->{ $childCol } ) === false ){
           if( $childType === JoinType::List->name ){
             $entityList = new EntityList();
             $entityList->setValue( [] );
             $entity->{ $childCol } = $entityList;
+          } else {
+            $entity->{ $childCol } = null;
           }
         }
       } else {
@@ -514,6 +516,8 @@ class Repository
           $entity[ $childCol ] = $childType === JoinType::List->name ? [] : null;
         }
       }
+
+      if( $childPkVal === null ) continue;
 
       if( $childType === JoinType::List->name ){
         $childList = $isObj
@@ -625,13 +629,15 @@ class Repository
   ): array {
     if( empty( $this->includesRelateds ) ){
       $joinDetail = $this->joinDetailBase();
-      $alias      = $joinDetail->alias;
-      $primaryKey = $joinDetail->aliasKey;
 
       return array_map(
         fn( $rawRow ) => $this->makeEntity(
-          $alias,
-          $this->extractFields( (array) $rawRow, $alias, $primaryKey ),
+          $joinDetail->alias,
+          $this->extractFields(
+            (array)$rawRow, 
+            $joinDetail->alias, 
+            $joinDetail->aliasKey
+          ),
           new ExpJoin( $joinDetail )
         ),
         $rows

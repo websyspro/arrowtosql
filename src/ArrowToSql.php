@@ -1161,8 +1161,26 @@ extends SqlUtils
         );
 
         if( $refClass->hasProperty( $left->value )){
+          $propType = $refClass->getProperty( $left->value )->getType();
+
+          // suporta union types como "OperatorEntity|null"
+          // extrai o primeiro tipo que não seja "null"
+          if( $propType instanceof \ReflectionUnionType ){
+            $propTypeName = null;
+            foreach( $propType->getTypes() as $t ){
+              if( $t->getName() !== "null" ){
+                $propTypeName = $t->getName();
+                break;
+              }
+            }
+          } else {
+            $propTypeName = $propType instanceof \ReflectionNamedType
+              ? $propType->getName()
+              : (string) $propType;
+          }
+
           $entityFromLeft = $this->repository->getEntityStructureByString(
-            $refClass->getProperty( $left->value )->getType()
+            $propTypeName
           );
 
           return $this->repository->registerIncludeLinear(
