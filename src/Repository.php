@@ -208,7 +208,7 @@ class Repository
     Closure $closure
   ): Repository {
     $this->orderByDescResult = $this->arrowToSql($closure)
-      ->getColumnResult();
+      ->getColumnResult( ColumnResultType::OrderBy );
       
     return $this;
   }
