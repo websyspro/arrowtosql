@@ -2,6 +2,7 @@
 
 namespace Websyspro\ArrowToSql;
 
+use Websyspro\ArrowToSql\Enums\ColumnResultType;
 use Websyspro\ArrowToSql\Enums\MethodList;
 use Websyspro\ArrowToSql\Enums\MethodType;
 use Websyspro\ArrowToSql\Expressions\ExpBetween;
@@ -35,7 +36,6 @@ use function count;
 use function is_string;
 use function is_array;
 use function is_object;
-use function is_null;
 
 class AbstractScriptDialect
 extends SqlUtils
@@ -48,25 +48,29 @@ extends SqlUtils
   ){}
 
   public function resolveMethodToDate(
-    string $column
+    string $column,
+    ColumnResultType $columnResultType
   ): string {
     return "Date({$column})";
   }
 
   public function resolveMethodToUpper(
-    string $column
+    string $column,
+    ColumnResultType $columnResultType
   ): string {
     return "Upper({$column})";
   }
   
   public function resolveMethodToLower(
-    string $column
+    string $column,
+    ColumnResultType $columnResultType
   ): string {
     return "Lower({$column})";
   }
   
   public function resolveMethodToTrim(
-    string $column
+    string $column,
+    ColumnResultType $columnResultType
   ): string {
     return "Trim({$column})";
   }
@@ -74,7 +78,8 @@ extends SqlUtils
   public function resolveMethodToAs(
     string $column,
     ExpField|ExpMethod $expr,
-    ExpFieldMethod $method
+    ExpFieldMethod $method,
+    ColumnResultType $columnResultType
   ): string {
     if( empty($method->args)){
       return $column;
@@ -98,21 +103,23 @@ extends SqlUtils
   public function resolveExprFieldMethods(
     string $column,
     ExpField|ExpMethod $expr,
-    ExpFieldMethod $method
+    ExpFieldMethod $method,
+    ColumnResultType $columnResultType
   ): string {
     return match( $method->name ){
-      MethodList::ToDate->value => $this->resolveMethodToDate( $column ),
-      MethodList::Upper->value => $this->resolveMethodToUpper( $column ),
-      MethodList::Lower->value => $this->resolveMethodToLower( $column ),
-      MethodList::Trim->value => $this->resolveMethodToTrim( $column ),
-      MethodList::As->value => $this->resolveMethodToAs( $column, $expr, $method ),
+      MethodList::ToDate->value => $this->resolveMethodToDate( $column, $columnResultType ),
+      MethodList::Upper->value => $this->resolveMethodToUpper( $column, $columnResultType ),
+      MethodList::Lower->value => $this->resolveMethodToLower( $column, $columnResultType ),
+      MethodList::Trim->value => $this->resolveMethodToTrim( $column, $columnResultType ),
+      MethodList::As->value => $this->resolveMethodToAs( $column, $expr, $method, $columnResultType ),
         default => $column
     };
   }
 
   public function resolveExprField(
     ExpField $expr,
-    bool $depth = false
+    bool $depth = false,
+    ColumnResultType $columnResultType = ColumnResultType::Select
   ): string {
     if( $expr instanceof ExpField ){
       $methods = $depth === false 
@@ -120,10 +127,11 @@ extends SqlUtils
         : [];
 
       $column = sprintf( "%s.%s", $expr->table, $expr->column );
+
       foreach( $methods as $method ){
         if( $method instanceof ExpFieldMethod ){
           $column = $this->resolveExprFieldMethods(
-            $column, $expr, $method
+            $column, $expr, $method, $columnResultType
           );
         }
       }
@@ -314,7 +322,8 @@ extends SqlUtils
   }
 
   public function resolveExprWhereCompare(
-    ExpCompare $expr
+    ExpCompare $expr,
+    ColumnResultType $columnResultType
   ): string {
     [ $exprCompareLeft, $exprEqual, $exprCompareRight
     ] = $expr->childs;
@@ -324,7 +333,7 @@ extends SqlUtils
 
     if( $hasCompareExistValue ){
       return sprintf( "%s %s %s",
-        $this->resolveExprField( $exprCompareLeft ), $exprEqual->value, 
+        $this->resolveExprField( $exprCompareLeft, false, $columnResultType ), $exprEqual->value, 
         $this->resolveParams( 
           $this->resolveExprValue(
             $exprCompareRight->childs
@@ -333,8 +342,8 @@ extends SqlUtils
       );
     } else {
       return sprintf( "%s %s %s",
-        $this->resolveExprField( $exprCompareLeft ), $exprEqual->value, 
-        $this->resolveExprField( $exprCompareRight )
+        $this->resolveExprField( $exprCompareLeft, false, $columnResultType ), $exprEqual->value, 
+        $this->resolveExprField( $exprCompareRight, false, $columnResultType )
       );
     }
   }
@@ -462,15 +471,16 @@ extends SqlUtils
   }  
 
   public function resolveExprWhere(
-    array $tokens = []
+    array $tokens = [],
+    ColumnResultType $columnResultType = ColumnResultType::Select
   ): string {
     $tokens = $this->mapper(
-      $tokens, function( mixed $expr ){
+      $tokens, function( mixed $expr ) use( $columnResultType ) {
         if( $expr instanceof ExpLogical ){
           return $this->resolveExprWhereLogical( $expr );
         } else
         if( $expr instanceof ExpCompare ){
-          return $this->resolveExprWhereCompare( $expr );
+          return $this->resolveExprWhereCompare( $expr, $columnResultType );
         } else
         if( $expr instanceof ExpIsNull ){
           return $this->resolveExprWhereIsNull( $expr );
@@ -512,9 +522,10 @@ extends SqlUtils
 
   private function resolveExprColumnGroup(
     ExpGroup $expr,
-    bool $depth = false
+    bool $depth = false,
+    ColumnResultType $columnResultType = ColumnResultType::Select
   ): string {
-    return sprintf( "(%s)", $this->resolveExprColumns( $expr->childs, $depth ));
+    return sprintf( "(%s)", $this->resolveExprColumns( $expr->childs, $depth, $columnResultType ));
   }
 
   private function resolveExprColumnMethodNotExists(
@@ -557,10 +568,11 @@ extends SqlUtils
   
   private function resolveExprColumnField(
     ExpField $expr,
-    bool $depth = false
-  ): string {
+    bool $depth = false,
+    ColumnResultType $columnResultType = ColumnResultType::Select
+  ): string|array {
     $expr = $this->resolveExprColumnMethodNotExists( $expr );
-    return $this->resolveExprField( $expr, $depth );
+    return $this->resolveExprField( $expr, $depth, $columnResultType );
   }
 
   private function resolveExprColumnMethodName(
@@ -571,18 +583,19 @@ extends SqlUtils
 
   private function resolveExprColumnMethod(
     ExpMethod $expr,
-    bool $depth = false
+    bool $depth = false,
+    ColumnResultType $columnResultType = ColumnResultType::Select
   ): string {
     $exprMethod = sprintf( "%s(%s)",
       $this->resolveExprColumnMethodName( $expr->name ), 
-      $this->resolveExprColumns( $expr->childs, true )
+      $this->resolveExprColumns( $expr->childs, $depth, $columnResultType )[0]
     );
 
     $expr = $this->resolveExprColumnMethodNotExists($expr);
     foreach( $this->resolveExprFieldMethodArr($expr) as $method ){
       if( $method instanceof ExpFieldMethod ){
         $exprMethod = $this->resolveExprFieldMethods(
-          $exprMethod, $expr, $method
+          $exprMethod, $expr, $method, $columnResultType
         );
       }
     }
@@ -604,18 +617,19 @@ extends SqlUtils
 
   public function resolveExprColumns(
     array $tokens = [],
-    bool $depth = false
+    bool $depth = false,
+    ColumnResultType $columnResultType = ColumnResultType::Select
   ): array {
     $tokens = $this->mapper(
-      $tokens, function( mixed $expr ) use( $depth ) {
+      $tokens, function( mixed $expr ) use( $depth, $columnResultType ) {
         if( $expr instanceof ExpGroup ){
-          return $this->resolveExprColumnGroup( $expr, $depth );
+          return $this->resolveExprColumnGroup( $expr, $depth, $columnResultType );
         } else
         if( $expr instanceof ExpField ){
-          return $this->resolveExprColumnField( $expr, $depth );
+          return $this->resolveExprColumnField( $expr, $depth, $columnResultType );
         } else
         if( $expr instanceof ExpMethod ){
-          return $this->resolveExprColumnMethod( $expr, $depth );
+          return $this->resolveExprColumnMethod( $expr, $depth, $columnResultType );
         } else
         if( $expr instanceof ExpSeparator ){
           return $this->resolveExprColumnSeparator( $expr );

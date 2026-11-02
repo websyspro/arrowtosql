@@ -2,6 +2,7 @@
 
 namespace Websyspro\ArrowToSql;
 
+use Websyspro\ArrowToSql\Enums\ColumnResultType;
 use Websyspro\ArrowToSql\Enums\JoinType;
 use Websyspro\ArrowToSql\Enums\LogicalType;
 use Websyspro\ArrowToSql\Enums\MethodList;
@@ -35,6 +36,7 @@ use Websyspro\ArrowToSql\Expressions\ExpToken;
 use Websyspro\ArrowToSql\Expressions\ExpUnary;
 use Websyspro\ArrowToSql\Expressions\ExpValue;
 use Websyspro\Connection\Enums\DriverType;
+use Websyspro\Entity\Interfaces\ColumnType;
 use Websyspro\Entity\Schemas\AbstractEntityStructure;
 use Websyspro\Entity\Types\ColumnFlag;
 use Websyspro\Connection\Database;
@@ -897,11 +899,12 @@ extends SqlUtils
   }
 
   private function resolveWheres(
+    ColumnResultType $columnResultType 
   ): void {
     $this->tokens = $this->resolveHierarchy( $this->resolveScopesAndTokens());
     $this->tokens = $this->resolveSemantics( $this->tokens );
     [ $this->script, $this->params ] = [
-      $this->resolveDialect()->resolveExprWhere( $this->tokens ),
+      $this->resolveDialect()->resolveExprWhere( $this->tokens, $columnResultType ),
       $this->resolveDialect()->resolveExprParams()
     ];    
   }
@@ -912,6 +915,7 @@ extends SqlUtils
   }
 
   public function getWhereResult(
+    ColumnResultType $columnResultType 
   ): WhereResult {
     $this->resolveExpressionType();
     $this->resolveReflection();
@@ -919,7 +923,7 @@ extends SqlUtils
     $this->resolveUses();
     $this->resolveStatics();
     $this->resolveExpression();
-    $this->resolveWheres();
+    $this->resolveWheres( $columnResultType );
     $this->resolveClear();
 
     return new WhereResult(
@@ -1072,18 +1076,20 @@ extends SqlUtils
             default => $childs
         }
     );
-  }  
-
+  }
+  
   private function resolveColumns(
+    ColumnResultType $columnResultType
   ): void {
     $this->tokens = $this->resolveHierarchyColumn( $this->resolveScopesAndTokens());
     [ $this->script, $this->params ] = [
-      $this->resolveDialect()->resolveExprColumns( $this->tokens ),
+      $this->resolveDialect()->resolveExprColumns( $this->tokens, false, $columnResultType ),
       $this->resolveDialect()->resolveExprParams()
     ];    
   }  
 
   public function getColumnResult(
+    ColumnResultType $columnResultType 
   ): ColumnResult {
     $this->resolveExpressionType();
     $this->resolveReflection();
@@ -1091,7 +1097,7 @@ extends SqlUtils
     $this->resolveUses();
     $this->resolveStatics();
     $this->resolveExpression();
-    $this->resolveColumns();
+    $this->resolveColumns( $columnResultType );
     $this->resolveClear();
 
     return new ColumnResult(

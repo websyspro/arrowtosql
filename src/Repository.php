@@ -3,6 +3,7 @@
 namespace Websyspro\ArrowToSql;
 
 use ReflectionClass;
+use Websyspro\ArrowToSql\Enums\ColumnResultType;
 use Websyspro\ArrowToSql\Enums\JoinType;
 use Websyspro\ArrowToSql\Expressions\ExpJoin;
 use Websyspro\ArrowToSql\Interfaces\AppendResultList;
@@ -12,6 +13,7 @@ use Websyspro\ArrowToSql\Interfaces\RepositoryResult;
 use Websyspro\ArrowToSql\Interfaces\WhereResult;
 use Websyspro\Connection\Enums\DriverType;
 use Websyspro\Entity\Decorators\EntityList;
+use Websyspro\Entity\Interfaces\ColumnType;
 use Websyspro\Entity\Schemas\AbstractEntityStructure;
 use Websyspro\Entity\Schemas\MySqlEntityStructure;
 use Websyspro\Entity\Schemas\PostgresEntityStructure;
@@ -161,7 +163,7 @@ class Repository
     Closure $closure
   ): Repository {
     $this->whereResult = $this->arrowToSql($closure)
-      ->getWhereResult();
+      ->getWhereResult( ColumnResultType::Where );
     
     return $this;
   }
@@ -169,8 +171,8 @@ class Repository
   public function select(
     Closure $closure
   ): Repository {
-    $this->selectResult = $this->arrowToSql($closure)
-      ->getColumnResult();
+    $this->selectResult = $this->arrowToSql( $closure )
+      ->getColumnResult( ColumnResultType::Select );
     
     return $this;
   }
@@ -179,7 +181,7 @@ class Repository
     Closure $closure
   ): Repository {
     $this->groupByResult = $this->arrowToSql($closure)
-      ->getColumnResult();
+      ->getColumnResult( ColumnResultType::GroupBy );
     
     return $this;
   }
@@ -188,7 +190,7 @@ class Repository
     Closure $closure
   ): Repository {
     $this->orderByResult = $this->arrowToSql($closure)
-      ->getColumnResult();
+      ->getColumnResult( ColumnResultType::OrderBy );
     
     return $this;
   }
@@ -197,7 +199,7 @@ class Repository
     Closure $closure
   ): Repository {
     $this->orderByAscResult = $this->arrowToSql($closure)
-      ->getColumnResult();
+      ->getColumnResult( ColumnResultType::OrderBy );
 
     return $this;
   }
