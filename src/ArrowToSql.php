@@ -2,8 +2,6 @@
 
 namespace Websyspro\ArrowToSql;
 
-use ReflectionClass;
-use ReflectionNamedType;
 use Websyspro\ArrowToSql\Enums\JoinType;
 use Websyspro\ArrowToSql\Enums\LogicalType;
 use Websyspro\ArrowToSql\Enums\MethodList;
@@ -45,9 +43,12 @@ use function sprintf;
 use function count;
 use function in_array;
 use function sizeof;
+use ReflectionNamedType;
+use ReflectionUnionType;
 use ReflectionFunction;
-use Closure;
+use ReflectionClass;
 use PhpToken;
+use Closure;
 
 defined( 'T_START_PARENTESES' ) || define( 'T_START_PARENTESES', 40 );
 defined( 'T_END_PARENTESES' ) || define( 'T_END_PARENTESES', 41 );
@@ -1098,7 +1099,6 @@ extends SqlUtils
     );
   }
 
-  // JoinsResults
   private function resolveIncludeRemoveParenteses(
     array $tokens = []
   ): array {
@@ -1165,7 +1165,7 @@ extends SqlUtils
           // "OperatorEntity", "?OperatorEntity", "OperatorEntity|null"
           $propTypeName = null;
 
-          if( $propType instanceof \ReflectionUnionType ){
+          if( $propType instanceof ReflectionUnionType ){
             foreach( $propType->getTypes() as $t ){
               if( $t instanceof ReflectionNamedType && $t->getName() !== "null" ){
                 $propTypeName = $t->getName();
@@ -1252,8 +1252,6 @@ extends SqlUtils
     $this->resolveIncludes();   
     return $this->script;
   }
-
-  // And JoinsResults
 
   private function resolveHierarchyAppend(
     array $tokens = []
