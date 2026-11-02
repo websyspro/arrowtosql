@@ -430,7 +430,8 @@ class Repository
   private function makeEntity(
     string $alias,
     array $fields,
-    ExpJoin|null $expJoin = null
+    ExpJoin|null $expJoin = null,
+    array $activeIncludes = []
   ): mixed {
     // resolve entityClass do JoinDetail correspondente
     $entityClass = null;
@@ -452,14 +453,31 @@ class Repository
 
     $reflection      = new ReflectionClass( $entityClass );
     $entityStructure = $this->getEntityStructureByString( $entityClass );
-    $orderedColumns  = $entityStructure->columns->items ?? [];
+    $orderedColumns  = $entityStructure->columnsAlls->items ?? [];
 
     // campos extras que não estão na entity (ex: sum(...)->as("value"))
     $extraFields = array_diff_key( $fields, array_flip( $orderedColumns ) );
 
+    // nomes dos campos virtuais que estão ativos no ->include() desta query
+    $activeIncludeColumns = array_map(
+      fn( ExpJoin $inc ) => $inc->joinDetail->column,
+      $activeIncludes
+    );
+
     $object = new \stdClass();
 
-    // 1. campos na ordem definida pela Entity
+    // 1. inicializa na ordem da Entity apenas as colunas presentes nos fields
+    //    + campos virtuais que estão no ->include() ativo
+    foreach( $orderedColumns as $column ){
+      $isInFields  = array_key_exists( $column, $fields );
+      $isVirtual   = in_array( $column, $activeIncludeColumns, true );
+
+      if( $isInFields || $isVirtual ){
+        $object->{ $column } = null;
+      }
+    }
+
+    // 2. preenche os campos que vieram do banco
     foreach( $orderedColumns as $column ){
       if( array_key_exists( $column, $fields ) === false ) continue;
 
@@ -497,7 +515,7 @@ class Repository
       }
     }
 
-    // 2. campos extras ao final (aliases de aggregate, colunas calculadas, etc.)
+    // 3. campos extras ao final (aliases de aggregate, colunas calculadas, etc.)
     foreach( $extraFields as $field => $value ){
       $object->{ $field } = $value;
     }
@@ -583,7 +601,7 @@ class Repository
 
         if( $childExists === false ){
           $childFields = $this->extractFields( $row, $childAlias, $childPk );
-          $childEntity = $this->makeEntity( $childAlias, $childFields, $childExpJoin );
+          $childEntity = $this->makeEntity( $childAlias, $childFields, $childExpJoin, $childExpJoin->includes );
           $childIsObj  = is_object( $childEntity );
 
           $this->buildEntityIncludes( 
@@ -605,7 +623,7 @@ class Repository
 
         if( $alreadySet === false ){
           $childFields = $this->extractFields( $row, $childAlias, $childPk );
-          $childEntity = $this->makeEntity( $childAlias, $childFields, $childExpJoin );
+          $childEntity = $this->makeEntity( $childAlias, $childFields, $childExpJoin, $childExpJoin->includes );
           $childIsObj  = is_object( $childEntity );
 
           $this->buildEntityIncludes( $row, $childExpJoin, $childEntity, $childIsObj );
@@ -668,7 +686,8 @@ class Repository
       if( isset( $pkIndex[ $alias ][ $pkValue ] ) === false ){
         $pkIndex[ $alias ][ $pkValue ] = count( $result );
         $result[] = $this->makeEntity(
-          $alias, $this->extractFields( $row, $alias, $primaryKey ), $expJoin
+          $alias, $this->extractFields( $row, $alias, $primaryKey ), $expJoin,
+          $expJoin->includes
         );
       }
 
