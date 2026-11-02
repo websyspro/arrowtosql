@@ -50,29 +50,29 @@ extends SqlUtils
   public function resolveMethodToDate(
     string $column,
     ColumnResultType $columnResultType
-  ): string {
-    return "Date({$column})";
+  ): string|array {
+    return [ "Date({$column})" ];
   }
 
   public function resolveMethodToUpper(
     string $column,
     ColumnResultType $columnResultType
-  ): string {
-    return "Upper({$column})";
+  ): string|array {
+    return [ "Upper({$column})" ];
   }
   
   public function resolveMethodToLower(
     string $column,
     ColumnResultType $columnResultType
-  ): string {
-    return "Lower({$column})";
+  ): string|array {
+    return [ "Lower({$column})" ];
   }
   
   public function resolveMethodToTrim(
     string $column,
     ColumnResultType $columnResultType
-  ): string {
-    return "Trim({$column})";
+  ): string|array {
+    return [ "Trim({$column})" ];
   }
   
   public function resolveMethodToAs(
@@ -80,13 +80,40 @@ extends SqlUtils
     ExpField|ExpMethod $expr,
     ExpFieldMethod $method,
     ColumnResultType $columnResultType
-  ): string {
-    if( empty($method->args)){
+  ): string|array {
+    if( empty( $method->args )){
       return $column;
     }
 
-    return "{$column} As {$expr->table}_{$method->args[0]->value}";
-  }  
+    if( $columnResultType === ColumnResultType::Select ){
+      if( $expr instanceof ExpField ){
+        return [
+          "{$column} As {$expr->column}",
+          "{$column} As {$expr->table}_{$method->args[0]->value}"
+        ];
+      } else
+      if( $expr instanceof ExpMethod ){
+        [ $expr ] = $expr->childs;
+
+        return [
+          "{$column} As {$expr->column}",
+          "{$column} As {$expr->table}_{$method->args[0]->value}"
+        ];
+      }
+    }
+
+    return [
+      "{$column} As {$expr->column}",
+      "{$column} As {$expr->table}_{$method->args[0]->value}"
+    ];
+  }
+  
+  public function resolveAs(
+    string $column,
+    ExpField|ExpMethod $expr,
+  ): array {
+    return [ $column ];
+  }
 
   public function resolveExprFieldMethodArr(
     ExpField|ExpMethod $expr
@@ -105,14 +132,14 @@ extends SqlUtils
     ExpField|ExpMethod $expr,
     ExpFieldMethod $method,
     ColumnResultType $columnResultType
-  ): string {
+  ): string|array {
     return match( $method->name ){
       MethodList::ToDate->value => $this->resolveMethodToDate( $column, $columnResultType ),
       MethodList::Upper->value => $this->resolveMethodToUpper( $column, $columnResultType ),
       MethodList::Lower->value => $this->resolveMethodToLower( $column, $columnResultType ),
       MethodList::Trim->value => $this->resolveMethodToTrim( $column, $columnResultType ),
       MethodList::As->value => $this->resolveMethodToAs( $column, $expr, $method, $columnResultType ),
-        default => $column
+        default => $this->resolveAs( $column, $expr )
     };
   }
 
@@ -120,14 +147,26 @@ extends SqlUtils
     ExpField $expr,
     bool $depth = false,
     ColumnResultType $columnResultType = ColumnResultType::Select
-  ): string {
+  ): string|array {
     if( $expr instanceof ExpField ){
       $methods = $depth === false 
         ? $this->resolveExprFieldMethodArr($expr) 
         : [];
 
-      $column = sprintf( "%s.%s", $expr->table, $expr->column );
+      if( ColumnResultType::Select === $columnResultType ) {
+        $column = sprintf( "%s.%s", $expr->table, $expr->column );
+        foreach( $methods as $method ){
+          if( $method instanceof ExpFieldMethod ){
+            $column = $this->resolveExprFieldMethods(
+              $column, $expr, $method, $columnResultType
+            );
+          }
+        }
 
+        return $column;
+      }
+
+      $column = sprintf( "%s.%s", $expr->table, $expr->column );
       foreach( $methods as $method ){
         if( $method instanceof ExpFieldMethod ){
           $column = $this->resolveExprFieldMethods(
@@ -136,7 +175,7 @@ extends SqlUtils
         }
       }
 
-      return $column;
+      return $column;      
     } else return "table.field";
   }
   
@@ -585,7 +624,7 @@ extends SqlUtils
     ExpMethod $expr,
     bool $depth = false,
     ColumnResultType $columnResultType = ColumnResultType::Select
-  ): string {
+  ): string|array {
     $exprMethod = sprintf( "%s(%s)",
       $this->resolveExprColumnMethodName( $expr->name ), 
       $this->resolveExprColumns( $expr->childs, $depth, $columnResultType )[0]
@@ -642,11 +681,9 @@ extends SqlUtils
       }
     );
 
-    return array_filter(
-      $tokens, fn(string $column) => (
-        $column !== ","
-      )
-    );
+    return array_values( array_filter(
+      $tokens, fn(string|array $column) => $column !== ","
+    ));
   }
 
   private function keyInstanceOfExpFieldValue(
