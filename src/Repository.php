@@ -33,11 +33,11 @@ class Repository
   private int $limit = -1;
   public array $includesLinears = [];
   public array $includesRelateds = [];
+  public array $orderByResult = [];
   private static array $cacheES = [];
   public WhereResult $whereResult;
   public ColumnResult $selectResult;
   public ColumnResult $groupByResult;
-  public ColumnResult $orderByResult;
   public ColumnResult $orderByAscResult;
   public ColumnResult $orderByDescResult;
   public AppendResultList $appendResultLists;
@@ -189,6 +189,7 @@ class Repository
     OrderByType $orderByType,
     ColumnResult $columnResult
   ): Repository {
+    print_r($columnResult);
     foreach( $columnResult->script as $script ){
       $this->orderByResult[] = "{$script} {$orderByType->name}";
     }
@@ -340,10 +341,10 @@ class Repository
 
   private function defineOrderBys(
   ): string|null {
-    if( isset( $this->orderByResult )){
+    if( empty( $this->orderByResult )){
       return sprintf( 
         "Order By %s", implode( 
-          ",", $this->orderByResult->script
+          ",", $this->orderByResult
         )
       );
     }
