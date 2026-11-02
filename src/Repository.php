@@ -257,10 +257,20 @@ class Repository
     return [];
   }
 
+  private function defineSelectdColumnsByOrder(
+    int $order = 0
+  ): array {
+    return array_map(
+      fn( array $script ) => $script[ $order ],
+        $this->selectResult->script
+    );
+  }
+
   private function defineSelectedAllsWithIncludes(
     array $selectedsWithIncludes = []
   ): string {
-    $selectedsWithIncludes = $this->selectResult->script;
+    
+    $selectedsWithIncludes = $this->defineSelectdColumnsByOrder(1);
     if( empty( $this->includesLinears ) === false ){
       foreach( $this->includesLinears as $includes ){
         if( empty( $includes->columnsSelecteds ) === false ){
@@ -285,11 +295,7 @@ class Repository
   private function defineSelectedFromAliasAll(
   ): string|null {
     return implode(
-      ", ", array_map(
-      fn( string $columnName ) => preg_replace(
-          "#\s.*_#", " ", $columnName
-        ), $this->selectResult->script
-      )
+      ", ", $this->defineSelectdColumnsByOrder(0)
     );
   }  
 
