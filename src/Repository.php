@@ -467,7 +467,18 @@ class Repository
       if( $typeName && class_exists( $typeName ) ){
         $typeInstance = new $typeName();
         if( method_exists( $typeInstance, "setValue" ) ){
-          $typeInstance->setValue( $this->castValue( $typeName, $value ) );
+          $castedValue = $this->castValue( $typeName, $value );
+
+          // aplica precisão decimal se o campo tiver #[Precision]
+          $precisionAttr = $reflection->getProperty( $field )
+            ->getAttributes( \Websyspro\Entity\Decorators\Precision::class );
+
+          if( !empty( $precisionAttr ) && is_float( $castedValue ) ){
+            $scale       = $precisionAttr[0]->newInstance()->scale;
+            $castedValue = round( $castedValue, $scale );
+          }
+
+          $typeInstance->setValue( $castedValue );
           $object->{ $field } = $typeInstance;
         } else {
           $object->{ $field } = $value;
