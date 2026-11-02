@@ -326,6 +326,17 @@ class Repository
     return null;
   }
 
+  private function defineOrderBys(
+  ): string|null {
+    if( isset( $this->orderByResult )){
+      return sprintf( 
+        "Order By %s", implode( ",", $this->orderByResult->script )
+      );
+    }
+
+    return "Order By 1 asc";
+  }
+
   private function defineParamsToArray(
   ): array {
     if( isset( $this->whereResult )){
@@ -367,7 +378,7 @@ class Repository
 
   private function defineScriptBase(
   ): string {
-    return "Select %s From ( Select %s From %s %s %s %s ) As %s %s";
+    return "Select %s From ( Select %s From %s %s %s %s %s ) As %s %s";
   }
   
   public function defineQueryToString(
@@ -379,6 +390,7 @@ class Repository
       $this->defineAliasToString(),
       $this->defineWheres(),
       $this->defineGroupBys(),
+      $this->defineOrderBys(),
       $this->definePageds(),
       $this->defineAliasToString(),
       $this->defineIncludesToString(),
