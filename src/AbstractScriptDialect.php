@@ -102,6 +102,10 @@ extends SqlUtils
       }
     }
 
+    if( $columnResultType === ColumnResultType::OrderBy ){
+      return "{$column}";
+    }
+
     return [
       "{$column} As {$expr->column}",
       "{$column} As {$expr->table}_{$method->args[0]->value}"
