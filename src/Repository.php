@@ -271,9 +271,15 @@ class Repository
   ): array {
     if( isset( $this->selectResult ) === false ){
       foreach( $this->getEntityStructure()->columns->items as $column ){
-        $columnsAsterisc[] = $order === 1
-          ? "{$this->getEntityStructure()->entityNames->alias}.{$column} As {$this->getEntityStructure()->entityNames->alias}_{$column}"
-          : "{$this->getEntityStructure()->entityNames->alias}.{$column}";
+        $alias = $this->getEntityStructure()->entityNames->alias;
+
+        if( $order === 1 ){
+          $columnsAsterisc[] = Database::driverIsPostgres()
+            ? "{$alias}.{$column} As \"{$alias}_{$column}\""
+            : "{$alias}.{$column} As {$alias}_{$column}";
+        } else {
+          $columnsAsterisc[] = "{$alias}.{$column}";
+        }
       }
 
       return $columnsAsterisc;
