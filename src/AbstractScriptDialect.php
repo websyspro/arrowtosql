@@ -25,6 +25,7 @@ use Websyspro\ArrowToSql\Expressions\ExpSeparator;
 use Websyspro\ArrowToSql\Expressions\ExpSubQuery;
 use Websyspro\ArrowToSql\Expressions\ExpToken;
 use Websyspro\ArrowToSql\Expressions\ExpValue;
+use Websyspro\Connection\Database;
 use Websyspro\Entity\Schemas\MySqlEntityStructure;
 use Websyspro\Entity\Schemas\PostgresEntityStructure;
 use Websyspro\Entity\Schemas\SqLiteEntityStructure;
@@ -74,7 +75,7 @@ extends SqlUtils
   ): string|array {
     return [ "Trim({$column})" ];
   }
-  
+
   public function resolveMethodToAs(
     string $column,
     ExpField|ExpMethod $expr,
@@ -87,6 +88,13 @@ extends SqlUtils
 
     if( $columnResultType === ColumnResultType::Select ){
       if( $expr instanceof ExpField ){
+        if( Database::driverIsPostgres() ){
+          return [
+            "{$column} As {$expr->column}",
+            "{$column} As \"{$expr->table}_{$method->args[0]->value}\""
+          ];          
+        }
+
         return [
           "{$column} As {$expr->column}",
           "{$column} As {$expr->table}_{$method->args[0]->value}"
@@ -94,6 +102,13 @@ extends SqlUtils
       } else
       if( $expr instanceof ExpMethod ){
         [ $expr ] = $expr->childs;
+        
+        if( Database::driverIsPostgres() ){
+          return [
+            "{$column} As {$expr->column}",
+            "{$expr->table}.{$expr->column} As \"{$expr->table}_{$method->args[0]->value}\""
+          ];
+        }
 
         return [
           "{$column} As {$expr->column}",
