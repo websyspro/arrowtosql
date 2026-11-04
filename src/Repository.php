@@ -363,7 +363,27 @@ class Repository
       );
     }
 
-    return "Order By 1 Desc";
+    return null;
+  }
+
+  private function hasActivePaging(
+  ): bool {
+    return $this->limit !== -1 || $this->offSet !== 0;
+  }
+
+  private function defineOrderBysInSubQuery(
+  ): string|null {
+    if( Database::driverIsSqlServer() ){
+      if( empty( $this->orderByResult ) === false ){
+        return $this->defineOrderBys();
+      }
+      if( $this->hasActivePaging() ){
+        return "Order By 1";
+      }
+      return null;
+    }
+
+    return $this->defineOrderBys();
   }
 
   private function defineParamsToArray(
@@ -377,21 +397,36 @@ class Repository
 
   private function definePageds(
   ): string|null {
+    if( Database::driverIsSqlServer() ){
+      // Sem paginação mas com ORDER BY: usa OFFSET 0 ROWS (sem FETCH NEXT)
+      // para permitir ORDER BY dentro da subquery, que é inválido sem OFFSET/FETCH.
+      if( $this->limit === -1 && $this->offSet === 0 ){
+        if( empty( $this->orderByResult ) === false ){
+          return "OffSet 0 Rows";
+        }
+        return null;
+      }
+
+      return "OffSet {$this->offSet} Rows Fetch Next {$this->limit} Rows Only";
+    }
+
     if( $this->limit === -1 && $this->offSet === 0 ){
       return null;
     }
 
-    if( Database::driverIsSqlServer() ){
+    if( Database::driverIsPostgres() ){
       return "OffSet {$this->offSet} Rows Fetch Next {$this->limit} Rows Only";
-    } else return "Limit {$this->offSet} OffSet {$this->limit}";
+    }
+
+    return "Limit {$this->limit} OffSet {$this->offSet}";
   }
 
   public function paged(
-    int $limit,
-    int $offset
+    int $page,
+    int $pageSize
   ): Repository {
-    $this->offSet = $offset;
-    $this->limit = ( $limit - 1 ) * $offset;
+    $this->offSet = ( $page - 1 ) * $pageSize;
+    $this->limit = $pageSize;
     return $this;
   }
 
@@ -419,7 +454,7 @@ class Repository
       $this->defineAliasToString(),
       $this->defineWheres(),
       $this->defineGroupBys(),
-      $this->defineOrderBys(),
+      $this->defineOrderBysInSubQuery(),
       $this->definePageds(),
       $this->defineAliasToString(),
       $this->defineIncludesToString(),
