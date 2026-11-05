@@ -18,6 +18,8 @@ use Websyspro\Entity\Schemas\PostgresEntityStructure;
 use Websyspro\Entity\Schemas\SqLiteEntityStructure;
 use Websyspro\Entity\Schemas\SqlServerEntityStructure;
 use Websyspro\Connection\Database;
+use Websyspro\ArrowToSql\Interfaces\RepositoryInternal;
+use Websyspro\ArrowToSql\Interfaces\RepositoryPublic;
 use Websyspro\Utils\Collection;
 use function is_object;
 use function is_array;
@@ -30,6 +32,7 @@ use Exception;
 use Closure;
 
 class Repository
+implements RepositoryPublic, RepositoryInternal
 {
   private int $offSet = 0;
   private int $limit = -1;
@@ -139,7 +142,7 @@ class Repository
   private function registerOrderBy(
     OrderByType $orderByType,
     ColumnResult $columnResult
-  ): Repository {
+  ): static {
     foreach( $columnResult->script as $script ){
       $this->orderByResult[] = "{$script} {$orderByType->name}";
     }
@@ -670,7 +673,7 @@ class Repository
 
   public function include(
     mixed ...$closures
-  ): Repository {
+  ): static {
     $newIncludes = $this->joinDetailIncludes( $closures );
 
     if( empty( $this->includesRelateds ) ){
@@ -692,7 +695,7 @@ class Repository
 
   public function where(
     Closure $closure
-  ): Repository {
+  ): static {
     $this->whereResult = $this->arrowToSql($closure)
       ->getWhereResult( ColumnResultType::Where );
     
@@ -701,7 +704,7 @@ class Repository
 
   public function select(
     Closure $closure
-  ): Repository {
+  ): static {
     $this->selectResult = $this->arrowToSql( $closure )
       ->getColumnResult( ColumnResultType::Select );
     
@@ -710,7 +713,7 @@ class Repository
 
   public function groupBy(
     Closure $closure
-  ): Repository {
+  ): static {
     $this->groupByResult = $this->arrowToSql($closure)
       ->getColumnResult( ColumnResultType::GroupBy );
     
@@ -719,7 +722,7 @@ class Repository
 
   public function orderBy(
     Closure $closure
-  ): Repository {
+  ): static {
     $orderByResult = $this->arrowToSql($closure)
       ->getColumnResult( ColumnResultType::OrderBy );
 
@@ -728,7 +731,7 @@ class Repository
   
   public function orderByAsc(
     Closure $closure
-  ): Repository {
+  ): static {
     $orderByAscResult = $this->arrowToSql($closure)
       ->getColumnResult( ColumnResultType::OrderBy );
 
@@ -737,7 +740,7 @@ class Repository
 
   public function orderByDesc(
     Closure $closure
-  ): Repository {
+  ): static {
     $orderByDescResult = $this->arrowToSql($closure)
       ->getColumnResult( ColumnResultType::OrderBy );
       
@@ -791,7 +794,7 @@ class Repository
   public function paged(
     int $page,
     int $pageSize
-  ): Repository {
+  ): static {
     $this->offSet = ( $page - 1 ) * $pageSize;
     $this->limit = $pageSize;
     return $this;

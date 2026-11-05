@@ -13,6 +13,7 @@ use Websyspro\ArrowToSql\Interfaces\AppendResult;
 use Websyspro\ArrowToSql\Interfaces\AppendResultList;
 use Websyspro\ArrowToSql\Interfaces\ColumnResult;
 use Websyspro\ArrowToSql\Interfaces\JoinDetail;
+use Websyspro\ArrowToSql\Interfaces\RepositoryInternal;
 use Websyspro\ArrowToSql\Interfaces\WhereResult;
 use Websyspro\ArrowToSql\Expressions\ExpBetween;
 use Websyspro\ArrowToSql\Expressions\ExpCompare;
@@ -90,7 +91,7 @@ extends SqlUtils
 
   public function __construct(
     private Closure|array $closure,
-    private Repository $repository
+    private RepositoryInternal $repository
   ){}
 
   private function resolveExpressionType(
