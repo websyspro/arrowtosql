@@ -37,6 +37,7 @@ use Websyspro\ArrowToSql\Expressions\ExpUnary;
 use Websyspro\ArrowToSql\Expressions\ExpValue;
 use Websyspro\Connection\Enums\DriverType;
 use Websyspro\Entity\Interfaces\ColumnType;
+use Websyspro\Entity\Interfaces\ForeignKeyStructure;
 use Websyspro\Entity\Schemas\AbstractEntityStructure;
 use Websyspro\Entity\Types\ColumnFlag;
 use Websyspro\Connection\Database;
@@ -1186,6 +1187,34 @@ extends SqlUtils
             $propTypeName
           );
 
+          // Tenta localizar a FK no lado pai (entityFromTable → entityFromLeft)
+          $aliasReferenceKey = $entityFromTable->getColumnForeingKeyByAlias(
+            $entityFromLeft->getEntityAlias()
+          );
+
+          // Fallback: FK declarada no lado filho (entityFromLeft → entityFromTable)
+          // Ex: BoxEntity tem #[ForeignKey(OperatorEntity::class)] em operatorId
+          if( $aliasReferenceKey === null ){
+            foreach( $entityFromLeft->foreignKeys->items as $fkColumn => $fk ){
+              if( $fk instanceof ForeignKeyStructure ){
+                if( $fk->entity->alias === $entityFromTable->getEntityAlias() ){
+                  return $this->repository->registerIncludeLinear(
+                    new JoinDetail(
+                      JoinType::Object->name,
+                      $left->value,
+                      $entityFromLeft->getEntityAlias(),
+                      $fkColumn,              // aliasKey = coluna FK no filho (ex: operatorId)
+                      $entityFromTable->getEntityAlias(),
+                      $fk->references,        // aliasReferenceKey = campo referenciado no pai (ex: id)
+                      $entityFromLeft->getColumnsSelecteds(),
+                      $entityFromLeft->reflectionClass->getName()
+                    )
+                  );
+                }
+              }
+            }
+          }
+
           return $this->repository->registerIncludeLinear(
             new JoinDetail(
               JoinType::Object->name,
@@ -1193,9 +1222,8 @@ extends SqlUtils
               $entityFromLeft->getEntityAlias(), 
               $entityFromLeft->getPrimaryKey(), 
               $entityFromTable->getEntityAlias(), 
-              $entityFromTable->getColumnForeingKeyByAlias(
-                $entityFromLeft->getEntityAlias()
-              ), $entityFromLeft->getColumnsSelecteds(),
+              $aliasReferenceKey,
+              $entityFromLeft->getColumnsSelecteds(),
               $entityFromLeft->reflectionClass->getName()
             )
           );
