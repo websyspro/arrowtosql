@@ -2,6 +2,7 @@
 
 namespace Websyspro\ArrowToSql;
 
+use stdClass;
 use Websyspro\ArrowToSql\Enums\ColumnResultType;
 use Websyspro\ArrowToSql\Enums\JoinType;
 use Websyspro\ArrowToSql\Enums\OrderByType;
@@ -23,6 +24,7 @@ use function is_array;
 use function sprintf;
 use function strlen;
 use function count;
+use function in_array;
 use ReflectionClass;
 use Exception;
 use Closure;
@@ -31,15 +33,15 @@ class Repository
 {
   private int $offSet = 0;
   private int $limit = -1;
-  public array $includesLinears = [];
-  public array $includesRelateds = [];
-  public array $orderByResult = [];
+  private array $includesLinears = [];
+  private array $includesRelateds = [];
+  private array $orderByResult = [];
   private static array $cacheES = [];
-  public WhereResult $whereResult;
-  public ColumnResult $selectResult;
-  public ColumnResult $groupByResult;
-  public AppendResultList $appendResultLists;
-  public AbstractEntityStructure $entityStructure;
+  private WhereResult $whereResult;
+  private ColumnResult $selectResult;
+  private ColumnResult $groupByResult;
+  private AppendResultList $appendResultLists;
+  private AbstractEntityStructure $entityStructure;
 
   public function __construct(
     private readonly string $entity
@@ -56,7 +58,7 @@ class Repository
     };   
   } 
 
-  public function getEntityStructure(
+  private function getEntityStructure(
   ): AbstractEntityStructure {
     if( isset( static::$cacheES[ $this->entity ])){
       return static::$cacheES[ $this->entity ];
@@ -72,7 +74,7 @@ class Repository
     return static::$cacheES[ $this->entity ];
   }  
 
-  public function getEntityStructureByString(
+  private function getEntityStructureByString(
     string $entity
   ): AbstractEntityStructure {
     if( isset( static::$cacheES[ $entity ])){
@@ -113,7 +115,7 @@ class Repository
     );
   }  
 
-  public function registerIncludeLinear(
+  private function registerIncludeLinear(
     JoinDetail $joinDetail
   ): JoinDetail {
     if( empty( $this->includesLinears ) === true ){
@@ -132,57 +134,8 @@ class Repository
         $this->arrowToSql( $closure )
           ->getIncludesResult(), $closures
     );
-  }  
-
-  public function include(
-    mixed ...$closures
-  ): Repository {
-    $newIncludes = $this->joinDetailIncludes( $closures );
-
-    if( empty( $this->includesRelateds ) ){
-      $this->includesRelateds = [
-        new ExpJoin(
-          $this->joinDetailBase(),
-          $newIncludes
-        )
-      ];
-    } else {
-      $this->includesRelateds[0] = new ExpJoin(
-        $this->includesRelateds[0]->joinDetail,
-        array_merge( $this->includesRelateds[0]->includes, $newIncludes )
-      );
-    }
-
-    return $this;
   }
-
-  public function where(
-    Closure $closure
-  ): Repository {
-    $this->whereResult = $this->arrowToSql($closure)
-      ->getWhereResult( ColumnResultType::Where );
-    
-    return $this;
-  }
-
-  public function select(
-    Closure $closure
-  ): Repository {
-    $this->selectResult = $this->arrowToSql( $closure )
-      ->getColumnResult( ColumnResultType::Select );
-    
-    return $this;
-  }
-
-  public function groupBy(
-    Closure $closure
-  ): Repository {
-    $this->groupByResult = $this->arrowToSql($closure)
-      ->getColumnResult( ColumnResultType::GroupBy );
-    
-    return $this;
-  }
-
+  
   private function registerOrderBy(
     OrderByType $orderByType,
     ColumnResult $columnResult
@@ -192,77 +145,6 @@ class Repository
     }
 
     return $this;
-  }
-
-  public function orderBy(
-    Closure $closure
-  ): Repository {
-    $orderByResult = $this->arrowToSql($closure)
-      ->getColumnResult( ColumnResultType::OrderBy );
-
-    return $this->registerOrderBy( OrderByType::Asc, $orderByResult );
-  }
-  
-  public function orderByAsc(
-    Closure $closure
-  ): Repository {
-    $orderByAscResult = $this->arrowToSql($closure)
-      ->getColumnResult( ColumnResultType::OrderBy );
-
-    return $this->registerOrderBy( OrderByType::Asc, $orderByAscResult );
-  }
-
-  public function orderByDesc(
-    Closure $closure
-  ): Repository {
-    $orderByDescResult = $this->arrowToSql($closure)
-      ->getColumnResult( ColumnResultType::OrderBy );
-      
-    return $this->registerOrderBy( OrderByType::Desc, $orderByDescResult );
-  }
-
-  public function create(
-    Closure|array $closureOrListArr
-  ): bool {
-    $this->appendResultLists = is_array( $closureOrListArr ) === false
-      ? $this->arrowToSql( $closureOrListArr )->getAppendResult()
-      : $this->arrowToSql( $closureOrListArr )->getAppendResultFromArray( 
-          $this->entity, $closureOrListArr
-        );
-    
-    try {
-      foreach( $this->appendResultLists->values as $key => $values ){
-        if( Database::driverIsSqlServer() ){
-          Database::setIdentityInsert( $this->appendResultLists->table, true );
-        }
-        
-        Database::execute( 
-          sprintf( "Insert into %s (%s) values{$values}", 
-            $this->appendResultLists->table, 
-            $this->appendResultLists->fields
-          ), $this->appendResultLists->params[ $key ]
-        );
-
-        if( Database::driverIsSqlServer()){
-          Database::setIdentityInsert( $this->appendResultLists->table, false );
-        }
-      }  
-
-      return true;
-    } catch( Exception $exception ){}      
-    return false;
-  }
-
-  public function update(
-    Closure $closure
-  ): mixed {
-    return [];
-  }  
-
-  public function delete(
-    Closure $closure
-  ): mixed {
-    return [];
   }
 
   private function defineSelectdColumnsByOrder(
@@ -369,7 +251,7 @@ class Repository
   private function hasActivePaging(
   ): bool {
     return $this->limit !== -1 || $this->offSet !== 0;
-  }
+  }  
 
   private function defineOrderBysInSubQuery(
   ): string|null {
@@ -419,33 +301,14 @@ class Repository
     }
 
     return "Limit {$this->limit} OffSet {$this->offSet}";
-  }
-
-  public function paged(
-    int $page,
-    int $pageSize
-  ): Repository {
-    $this->offSet = ( $page - 1 ) * $pageSize;
-    $this->limit = $pageSize;
-    return $this;
-  }
-
-  public function includesLinears(
-  ): array {
-    return $this->includesLinears;
-  }
-
-  public function includesRelateds(
-  ): array {
-    return $this->includesRelateds;
-  }  
-
+  } 
+  
   private function defineScriptBase(
   ): string {
     return "Select %s From ( Select %s From %s %s %s %s %s ) As %s %s";
   }
   
-  public function defineQueryToString(
+  private function defineQueryToString(
   ): string {
     return sprintf(
       $this->defineScriptBase(),
@@ -537,8 +400,8 @@ class Repository
     array $fields,
     array $activeIncludeColumns,
     array $extraFields
-  ): \stdClass {
-    $object = new \stdClass();
+  ): stdClass {
+    $object = new stdClass();
 
     // 1. inicializa na ordem da Entity: campos selecionados + virtuais ativos
     foreach( $orderedColumns as $column ){
@@ -569,7 +432,7 @@ class Repository
     array $fields,
     ExpJoin|null $expJoin = null,
     array $activeIncludes = []
-  ): \stdClass|array {
+  ): stdClass|array {
     $entityClass = $this->resolveEntityClass( $alias, $expJoin );
 
     if( $entityClass === null ){
@@ -794,7 +657,7 @@ class Repository
     );
   }
 
-  public function defineFetchToRows(
+  private function defineFetchToRows(
     array $rows = []
   ): array {
     $rows = Database::query(
@@ -803,7 +666,146 @@ class Repository
     );
 
     return $this->defineStructureResultRows( $rows );
+  }  
+
+  public function include(
+    mixed ...$closures
+  ): Repository {
+    $newIncludes = $this->joinDetailIncludes( $closures );
+
+    if( empty( $this->includesRelateds ) ){
+      $this->includesRelateds = [
+        new ExpJoin(
+          $this->joinDetailBase(),
+          $newIncludes
+        )
+      ];
+    } else {
+      $this->includesRelateds[0] = new ExpJoin(
+        $this->includesRelateds[0]->joinDetail,
+        array_merge( $this->includesRelateds[0]->includes, $newIncludes )
+      );
+    }
+
+    return $this;
   }
+
+  public function where(
+    Closure $closure
+  ): Repository {
+    $this->whereResult = $this->arrowToSql($closure)
+      ->getWhereResult( ColumnResultType::Where );
+    
+    return $this;
+  }
+
+  public function select(
+    Closure $closure
+  ): Repository {
+    $this->selectResult = $this->arrowToSql( $closure )
+      ->getColumnResult( ColumnResultType::Select );
+    
+    return $this;
+  }
+
+  public function groupBy(
+    Closure $closure
+  ): Repository {
+    $this->groupByResult = $this->arrowToSql($closure)
+      ->getColumnResult( ColumnResultType::GroupBy );
+    
+    return $this;
+  }
+
+  public function orderBy(
+    Closure $closure
+  ): Repository {
+    $orderByResult = $this->arrowToSql($closure)
+      ->getColumnResult( ColumnResultType::OrderBy );
+
+    return $this->registerOrderBy( OrderByType::Asc, $orderByResult );
+  }
+  
+  public function orderByAsc(
+    Closure $closure
+  ): Repository {
+    $orderByAscResult = $this->arrowToSql($closure)
+      ->getColumnResult( ColumnResultType::OrderBy );
+
+    return $this->registerOrderBy( OrderByType::Asc, $orderByAscResult );
+  }
+
+  public function orderByDesc(
+    Closure $closure
+  ): Repository {
+    $orderByDescResult = $this->arrowToSql($closure)
+      ->getColumnResult( ColumnResultType::OrderBy );
+      
+    return $this->registerOrderBy( OrderByType::Desc, $orderByDescResult );
+  }
+
+  public function create(
+    Closure|array $closureOrListArr
+  ): bool {
+    $this->appendResultLists = is_array( $closureOrListArr ) === false
+      ? $this->arrowToSql( $closureOrListArr )->getAppendResult()
+      : $this->arrowToSql( $closureOrListArr )->getAppendResultFromArray( 
+          $this->entity, $closureOrListArr
+        );
+    
+    try {
+      foreach( $this->appendResultLists->values as $key => $values ){
+        if( Database::driverIsSqlServer() ){
+          Database::setIdentityInsert( $this->appendResultLists->table, true );
+        }
+        
+        Database::execute( 
+          sprintf( "Insert into %s (%s) values{$values}", 
+            $this->appendResultLists->table, 
+            $this->appendResultLists->fields
+          ), $this->appendResultLists->params[ $key ]
+        );
+
+        if( Database::driverIsSqlServer()){
+          Database::setIdentityInsert( $this->appendResultLists->table, false );
+        }
+      }  
+
+      return true;
+    } catch( Exception $exception ){}      
+    return false;
+  }
+
+  public function update(
+    Closure $closure
+  ): mixed {
+    return [];
+  }  
+
+  public function delete(
+    Closure $closure
+  ): mixed {
+    return [];
+  }
+
+  public function paged(
+    int $page,
+    int $pageSize
+  ): Repository {
+    $this->offSet = ( $page - 1 ) * $pageSize;
+    $this->limit = $pageSize;
+    return $this;
+  }
+
+  // public function includesLinears(
+  // ): array {
+  //   return $this->includesLinears;
+  // }
+
+  // public function includesRelateds(
+  // ): array {
+  //   return $this->includesRelateds;
+  // }  
 
   public function row(
   ): mixed {
