@@ -47,7 +47,7 @@ class Repository
     private readonly string $entity
   ){}
 
-  private function getEntityStructureMatch(
+  public function getEntityStructureMatch(
     ReflectionClass $reflectionClass
   ): AbstractEntityStructure {
     return match( Database::driver()){
@@ -58,7 +58,7 @@ class Repository
     };   
   } 
 
-  private function getEntityStructure(
+  public function getEntityStructure(
   ): AbstractEntityStructure {
     if( isset( static::$cacheES[ $this->entity ])){
       return static::$cacheES[ $this->entity ];
@@ -74,7 +74,7 @@ class Repository
     return static::$cacheES[ $this->entity ];
   }  
 
-  private function getEntityStructureByString(
+  public function getEntityStructureByString(
     string $entity
   ): AbstractEntityStructure {
     if( isset( static::$cacheES[ $entity ])){
@@ -115,7 +115,7 @@ class Repository
     );
   }  
 
-  private function registerIncludeLinear(
+  public function registerIncludeLinear(
     JoinDetail $joinDetail
   ): JoinDetail {
     if( empty( $this->includesLinears ) === true ){
