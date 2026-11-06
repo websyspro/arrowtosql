@@ -2,6 +2,7 @@
 
 use Websyspro\Connection\Database;
 use Websyspro\Connection\Enums\DriverType;
+use Websyspro\Entity\Schemas\AbstractSchemaManager;
 use Websyspro\Entity\Schemas\SqLiteEntityStructure;
 use Websyspro\Entity\Schemas\SqLiteEntityStructurePersisteds;
 use Websyspro\Entity\Schemas\SqLiteSchemaManager;
@@ -26,7 +27,7 @@ use Websyspro\Test\Entities\Shops\ProductGroupEntity;
 
 function schemaManager(
   ReflectionClass $rf
-): MySqlSchemaManager|PostgresSchemaManager|SqlServerSchemaManager|SqLiteSchemaManager {
+): AbstractSchemaManager {
   return match( Database::driver() ){
     DriverType::MySql => new MySqlSchemaManager( new MySqlEntityStructure($rf), new MySqlEntityStructurePersisteds($rf)),
     DriverType::Postgres => new PostgresSchemaManager( new PostgresEntityStructure($rf), new PostgresEntityStructurePersisteds($rf)),
@@ -52,7 +53,7 @@ try {
   foreach( $entityArrs as $entity ){
     $schemaManager = schemaManager( new ReflectionClass( $entity ));
     $schemaManager->asyncEntity();
-    $schemaManager;
+    return $schemaManager;
 
     $entityResults[] = sprintf(
       "Created table %s", basename( $entity )

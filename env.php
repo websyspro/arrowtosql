@@ -45,5 +45,5 @@ if( defined( "CONNECT_DETAILS_SQLITE" ) === false ){
 }
 
 if( defined( "CONNECT_DETAILS" ) === false ){
-  define( "CONNECT_DETAILS", CONNECT_DETAILS_SQL_SERVER );
+  define( "CONNECT_DETAILS", CONNECT_DETAILS_SQLITE );
 }
