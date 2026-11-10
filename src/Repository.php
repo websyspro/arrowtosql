@@ -495,10 +495,14 @@ implements RepositoryPublic, RepositoryInternal
       $childCol     = $childExpJoin->joinDetail->column;
       $childType    = $childExpJoin->joinDetail->type;
 
-      // usa "id" como PK real para detecção de duplicata
-      // aliasKey é a chave de junção (ex: documentId), não a PK da entidade
-      $childRealPk  = "id";
-      $childPkVal   = $row[ "{$childAlias}_{$childRealPk}" ] ?? null;
+      // usa a PK real da entidade filho para detecção de duplicata
+      // aliasKey é a chave de junção (ex: contatoId), não necessariamente a PK da entidade
+      $childRealPk = $childExpJoin->joinDetail->entityClass
+        ? ( $this->getEntityStructureByString( $childExpJoin->joinDetail->entityClass )->getPrimaryKey() ?? $childPk )
+        : $childPk;
+      $childPkVal   = $row[ "{$childAlias}_{$childRealPk}" ]
+        ?? $row[ "{$childAlias}_" . strtolower( $childRealPk ) ]
+        ?? null;
 
       // inicializa o campo na entidade pai antes de verificar se há registro filho
       // isso garante que campos sem correspondência (LEFT JOIN) apareçam como null ou []

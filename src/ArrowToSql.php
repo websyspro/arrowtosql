@@ -904,7 +904,7 @@ extends SqlUtils
     ColumnResultType $columnResultType 
   ): void {
     $this->tokens = $this->resolveHierarchy( $this->resolveScopesAndTokens());
-    $this->tokens = $this->resolveSemantics( $this->tokens );
+    $this->tokens = $this->resolveSemanticsApply( $this->tokens );
     [ $this->script, $this->params ] = [
       $this->resolveDialect()->resolveExprWhere( $this->tokens, $columnResultType ),
       $this->resolveDialect()->resolveExprParams()
