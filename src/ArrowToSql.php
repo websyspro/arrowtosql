@@ -392,7 +392,8 @@ extends SqlUtils
       MethodList::Contains->value,
       MethodList::Between->value,
       MethodList::NotIn->value,
-      MethodList::In->value
+      MethodList::In->value,
+      MethodList::Equals->value
     ];
 
     if( in_array( $method, $methodArr )){
@@ -605,6 +606,12 @@ extends SqlUtils
         MethodList::NotIn->value
       ]
     );
+  }
+
+  private function resolveIsEquals(
+    string $methdoName
+  ): bool {
+    return $methdoName === MethodList::Equals->value;
   }  
 
   private function resolveSemanticsMethods(
@@ -698,6 +705,15 @@ extends SqlUtils
                   $tokens[ $tokenIndex ] = new ExpNotIn([ 
                     new ExpField( $child->table, $child->column, $child->type, $modifys ), 
                     new ExpValue( $this->resolveEntryParenteses( $compares[ $comporeIndex ]->args ))
+                  ]);
+                }
+
+                /* Resolver Is Equals */
+                if( $this->resolveIsEquals( $compare->name )){
+                  $tokens[ $tokenIndex ] = new ExpCompare([
+                    new ExpField( $child->table, $child->column, $child->type, $modifys ),
+                    new ExpEqual( "=" ),
+                    new ExpValue( $compares[ $comporeIndex ]->args )
                   ]);
                 }
               }
