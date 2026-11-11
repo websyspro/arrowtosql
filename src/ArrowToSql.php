@@ -1383,24 +1383,48 @@ extends SqlUtils
               );
           }
 
-          // detect ->where( fn(...) => ... ) chain inline
-          if( mb_strtolower( $tokens[ $i + 1 ]->value ) === "where" ){
+          // detect ->where( fn(...) => ... ) and/or ->select( fn(...) => ... ) chain inline
+          if( mb_strtolower( $tokens[ $i + 1 ]->value ) === "where"
+           || mb_strtolower( $tokens[ $i + 1 ]->value ) === "select" ){
+
             $baseTokens   = $this->slice( $tokens, 0, $i );
-            $whereTokens  = $this->slice( $tokens, $i + 3, -1 ); // tokens inside ->where( ... )
+            $whereTokens  = null;
+            $selectTokens = null;
+
+            // scan remaining tokens for ->where and ->select at the top level
+            $rest = $this->slice( $tokens, $i );
+            $j = 0;
+            while( $j < count( $rest ) ){
+              $token = $rest[ $j ];
+              if( $token instanceof ExpToken && $token->key === T_OBJECT_OPERATOR ){
+                $methodName = mb_strtolower( $rest[ $j + 1 ]->value ?? '' );
+                if( $methodName === "where" || $methodName === "select" ){
+                  // find matching closing parenthesis
+                  $depth = 0;
+                  $start = $j + 3; // skip -> name (
+                  $end   = $start;
+                  for( $k = $start; $k < count( $rest ); $k++ ){
+                    if( $rest[$k]->key === T_START_PARENTESES ) $depth++;
+                    if( $rest[$k]->key === T_END_PARENTESES ){
+                      if( $depth === 0 ){ $end = $k; break; }
+                      $depth--;
+                    }
+                  }
+                  $innerTokens = $this->slice( $rest, $start, $end - $start );
+                  if( $methodName === "where" ){
+                    $whereTokens = $innerTokens;
+                  } else {
+                    $selectTokens = $innerTokens;
+                  }
+                  $j = $end + 1;
+                  continue;
+                }
+              }
+              $j++;
+            }
 
             return new ExpJoin(
-              $this->resolveIncludesDetails( $baseTokens, null, $whereTokens ),
-              []
-            );
-          }
-
-          // detect ->select( fn(...) => ... ) chain inline
-          if( mb_strtolower( $tokens[ $i + 1 ]->value ) === "select" ){
-            $baseTokens   = $this->slice( $tokens, 0, $i );
-            $selectTokens = $this->slice( $tokens, $i + 3, -1 ); // tokens inside ->select( ... )
-
-            return new ExpJoin(
-              $this->resolveIncludesDetails( $baseTokens, null, null, $selectTokens ),
+              $this->resolveIncludesDetails( $baseTokens, null, $whereTokens, $selectTokens ),
               []
             );
           }
