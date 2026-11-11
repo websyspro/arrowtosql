@@ -1341,11 +1341,19 @@ extends SqlUtils
     $subArrow->statics    = $this->statics;
     $subArrow->resolveColumnsDirect( ColumnResultType::Select );
 
-    // script is array of [inner, outer] pairs — we need the outer "alias.col As alias_col" form
-    return array_map(
-      fn( array $pair ) => $pair[1] ?? $pair[0],
-      (array) $subArrow->script
-    );
+    // resolveExprColumns returns array of string|array per column
+    // each array item is [inner, outer] — we need "outer" = "alias.col As alias_col"
+    $result = [];
+    foreach( (array) $subArrow->script as $item ){
+      if( is_array( $item ) ){
+        // [0] = "alias.col As col", [1] = "alias.col As alias_col"
+        $result[] = $item[1] ?? $item[0];
+      } else {
+        $result[] = $item;
+      }
+    }
+
+    return $result;
   }
 
   private function resolveIncludesOfChilds(
