@@ -7,6 +7,7 @@ use Closure;
 class JoinArrowToSql
 {
   public function __construct(
-    public Closure $closure
+    public Closure $closure,
+    public ?Closure $where = null
   ){}
 }

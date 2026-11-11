@@ -1148,7 +1148,8 @@ extends SqlUtils
   }
 
   private function resolveIncludesDetails(
-    array $tokens = []
+    array $tokens = [],
+    ?Closure $where = null
   ): JoinDetail|null {
     [ $table, $_, $left
     ] = $tokens;
@@ -1165,16 +1166,20 @@ extends SqlUtils
 
         foreach( $entityFromLeft->foreignKeys->items as $column => $fk ){
           if( $fk->entity->alias === $entityFromTable->entityNames->alias ){
-            return $this->repository->registerIncludeLinear(
-              new JoinDetail(
-                JoinType::List->name,
-                $left->value,
-                $entityFromLeft->getEntityAlias(), $column,
-                $fk->entity->alias, $fk->references,
-                $entityFromLeft->getColumnsSelecteds(),
-                $entityFromLeft->reflectionClass->getName()
-              )
+            $joinDetail = new JoinDetail(
+              JoinType::List->name,
+              $left->value,
+              $entityFromLeft->getEntityAlias(), $column,
+              $fk->entity->alias, $fk->references,
+              $entityFromLeft->getColumnsSelecteds(),
+              $entityFromLeft->reflectionClass->getName()
             );
+
+            if( $where !== null ){
+              $joinDetail->joinWhere = $this->buildJoinWhere( $where, $entityFromLeft );
+            }
+
+            return $this->repository->registerIncludeLinear( $joinDetail );
           }
         }
       } else {
@@ -1185,8 +1190,6 @@ extends SqlUtils
         if( $refClass->hasProperty( $left->value )){
           $propType = $refClass->getProperty( $left->value )->getType();
 
-          // resolve o nome da classe a partir de qualquer variação de tipo:
-          // "OperatorEntity", "?OperatorEntity", "OperatorEntity|null"
           $propTypeName = null;
 
           if( $propType instanceof ReflectionUnionType ){
@@ -1204,46 +1207,51 @@ extends SqlUtils
             $propTypeName
           );
 
-          // Tenta localizar a FK no lado pai (entityFromTable → entityFromLeft)
           $aliasReferenceKey = $entityFromTable->getColumnForeingKeyByAlias(
             $entityFromLeft->getEntityAlias()
           );
 
-          // Fallback: FK declarada no lado filho (entityFromLeft → entityFromTable)
-          // Ex: BoxEntity tem #[ForeignKey(OperatorEntity::class)] em operatorId
           if( $aliasReferenceKey === null ){
             foreach( $entityFromLeft->foreignKeys->items as $fkColumn => $fk ){
               if( $fk instanceof ForeignKeyStructure ){
                 if( $fk->entity->alias === $entityFromTable->getEntityAlias() ){
-                  return $this->repository->registerIncludeLinear(
-                    new JoinDetail(
-                      JoinType::Object->name,
-                      $left->value,
-                      $entityFromLeft->getEntityAlias(),
-                      $fkColumn,              // aliasKey = coluna FK no filho (ex: operatorId)
-                      $entityFromTable->getEntityAlias(),
-                      $fk->references,        // aliasReferenceKey = campo referenciado no pai (ex: id)
-                      $entityFromLeft->getColumnsSelecteds(),
-                      $entityFromLeft->reflectionClass->getName()
-                    )
+                  $joinDetail = new JoinDetail(
+                    JoinType::Object->name,
+                    $left->value,
+                    $entityFromLeft->getEntityAlias(),
+                    $fkColumn,
+                    $entityFromTable->getEntityAlias(),
+                    $fk->references,
+                    $entityFromLeft->getColumnsSelecteds(),
+                    $entityFromLeft->reflectionClass->getName()
                   );
+
+                  if( $where !== null ){
+                    $joinDetail->joinWhere = $this->buildJoinWhere( $where, $entityFromLeft );
+                  }
+
+                  return $this->repository->registerIncludeLinear( $joinDetail );
                 }
               }
             }
           }
 
-          return $this->repository->registerIncludeLinear(
-            new JoinDetail(
-              JoinType::Object->name,
-              $left->value,
-              $entityFromLeft->getEntityAlias(), 
-              $entityFromLeft->getPrimaryKey(), 
-              $entityFromTable->getEntityAlias(), 
-              $aliasReferenceKey,
-              $entityFromLeft->getColumnsSelecteds(),
-              $entityFromLeft->reflectionClass->getName()
-            )
+          $joinDetail = new JoinDetail(
+            JoinType::Object->name,
+            $left->value,
+            $entityFromLeft->getEntityAlias(), 
+            $entityFromLeft->getPrimaryKey(), 
+            $entityFromTable->getEntityAlias(), 
+            $aliasReferenceKey,
+            $entityFromLeft->getColumnsSelecteds(),
+            $entityFromLeft->reflectionClass->getName()
           );
+
+          if( $where !== null ){
+            $joinDetail->joinWhere = $this->buildJoinWhere( $where, $entityFromLeft );
+          }
+
+          return $this->repository->registerIncludeLinear( $joinDetail );
         }
       }
     } 
@@ -1251,8 +1259,17 @@ extends SqlUtils
     return null;
   }
 
+  private function buildJoinWhere(
+    Closure $where,
+    AbstractEntityStructure $entityStructure
+  ): WhereResult {
+    $subArrow = new ArrowToSql( $where, $this->repository );
+    return $subArrow->getWhereResult( ColumnResultType::Where );
+  }
+
   private function resolveIncludesOfChilds(
-    array $tokens = []
+    array $tokens = [],
+    ?Closure $where = null
   ): ExpJoin {
     foreach( $tokens as $i => $token ){
       if( $token instanceof ExpToken ){
@@ -1281,18 +1298,20 @@ extends SqlUtils
     return 
       new ExpJoin( 
         $this->resolveIncludesDetails(
-          $tokens
+          $tokens, $where
         ), []
       );
   }
 
   private function resolveIncludes(
+    ?Closure $where = null
   ): void {
     $this->tokens = $this->resolveIncludeRemoveParenteses( $this->resolveScopesAndTokens());
-    $this->script = $this->resolveIncludesOfChilds( $this->tokens );
+    $this->script = $this->resolveIncludesOfChilds( $this->tokens, $where );
   }
 
   public function getIncludesResult(
+    ?Closure $where = null
   ): mixed {
     $this->resolveExpressionType();
     $this->resolveReflection();
@@ -1300,7 +1319,7 @@ extends SqlUtils
     $this->resolveUses();
     $this->resolveStatics();
     $this->resolveExpression();
-    $this->resolveIncludes();   
+    $this->resolveIncludes( $where );   
     return $this->script;
   }
 

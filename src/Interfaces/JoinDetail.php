@@ -13,6 +13,7 @@ class JoinDetail
     public string|null $aliasReferenceKey = null,
     public array|null $columnsSelecteds = [],
     public string|null $entityClass = null,
+    public ?WhereResult $joinWhere = null,
   ){}
 
   public function getScript(
@@ -21,7 +22,7 @@ class JoinDetail
       return null;
     }
 
-    return sprintf( 
+    $script = sprintf( 
       "Left Join %s On %s.%s = %s.%s",
         $this->alias,
         $this->aliasReference,
@@ -29,5 +30,11 @@ class JoinDetail
         $this->alias,
         $this->aliasKey
     );
+
+    if( $this->joinWhere !== null && $this->joinWhere->script !== '' ){
+      $script .= " And {$this->joinWhere->script}";
+    }
+
+    return $script;
   }  
 }

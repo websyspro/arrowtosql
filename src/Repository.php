@@ -7,6 +7,7 @@ use Websyspro\ArrowToSql\Enums\ColumnResultType;
 use Websyspro\ArrowToSql\Enums\JoinType;
 use Websyspro\ArrowToSql\Enums\OrderByType;
 use Websyspro\ArrowToSql\Expressions\ExpJoin;
+use Websyspro\ArrowToSql\JoinArrowToSql;
 use Websyspro\ArrowToSql\Interfaces\AppendResultList;
 use Websyspro\ArrowToSql\Interfaces\ColumnResult;
 use Websyspro\ArrowToSql\Interfaces\JoinDetail;
@@ -133,9 +134,12 @@ implements RepositoryPublic, RepositoryInternal
     array $closures
   ): array {
     return array_map(
-      fn( Closure $closure ) => 
-        $this->arrowToSql( $closure )
-          ->getIncludesResult(), $closures
+      fn( Closure|JoinArrowToSql $closure ) => 
+        $this->arrowToSql( 
+          $closure instanceof JoinArrowToSql ? $closure->closure : $closure 
+        )->getIncludesResult(
+          $closure instanceof JoinArrowToSql ? $closure->where : null
+        ), $closures
     );
   }
   
@@ -273,11 +277,17 @@ implements RepositoryPublic, RepositoryInternal
 
   private function defineParamsToArray(
   ): array {
-    if( isset( $this->whereResult )){
-      return $this->whereResult->params;
+    $params = isset( $this->whereResult )
+      ? $this->whereResult->params
+      : [];
+
+    foreach( $this->includesLinears as $joinDetail ){
+      if( $joinDetail instanceof JoinDetail && $joinDetail->joinWhere !== null ){
+        $params = array_merge( $params, $joinDetail->joinWhere->params );
+      }
     }
-  
-    return [];
+
+    return $params;
   }  
 
   private function definePageds(
