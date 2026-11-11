@@ -909,10 +909,10 @@ extends SqlUtils
     }
 
     return $this->scriptDialect = match( Database::driver()){
-      DriverType::MySql => new MySqlScriptDialect( $this->expressionType, $this->statics ),
-      DriverType::SqLite => new SqlLiteScriptDialect( $this->expressionType, $this->statics ),
-      DriverType::Postgres => new PostgresScriptDialect( $this->expressionType, $this->statics ),
-      DriverType::SqlServer => new SqlServerScriptDialect( $this->expressionType, $this->statics )
+      DriverType::MySql => new MySqlScriptDialect( $this->expressionType, $this->statics, $this->uses ),
+      DriverType::SqLite => new SqlLiteScriptDialect( $this->expressionType, $this->statics, $this->uses ),
+      DriverType::Postgres => new PostgresScriptDialect( $this->expressionType, $this->statics, $this->uses ),
+      DriverType::SqlServer => new SqlServerScriptDialect( $this->expressionType, $this->statics, $this->uses )
     };
   }
 

@@ -45,7 +45,8 @@ extends SqlUtils
 
   public function __construct(
     private ExpressionType $expressionType,
-    private array $statics
+    private array $statics,
+    private array $uses = []
   ){}
 
   public function resolveMethodToDate(
@@ -275,7 +276,7 @@ extends SqlUtils
     string|null $property = null,
     array $uses = []
   ): array {
-    $use = $uses[$enum];
+    $use = $uses[$enum] ?? null;
 
     if( $use ){
       $constantEnum = "{$use}::{$case}";
@@ -312,22 +313,27 @@ extends SqlUtils
       $isNotProperty = $this->isNotProperty( $notProperty );
 
       if( $isWithProperty ){
-        $values[$i] = $this->changeEnumValue(
+        $result = $this->changeEnumValue(
           $withProperty[0]->value,
           $withProperty[2]->value,
-          $withProperty[4]->value
+          $withProperty[4]->value,
+          $this->uses
         );
+        if( !empty( $result ) ){
+          $values[$i] = $result[0]; // changeEnumValue returns [ ExpToken ]
+          array_splice( $values, $i + 1, 4 );
+        }
       } else if( $isNotProperty ){
-        $values[$i] = $this->changeEnumValue(
+        $result = $this->changeEnumValue(
           $withProperty[0]->value,
-          $withProperty[2]->value
+          $withProperty[2]->value,
+          null,
+          $this->uses
         );
-      } 
-      
-      if( $isWithProperty ){
-        array_splice( $values, $i + 1, 4 );
-      } else if( $isNotProperty ) {
-        array_splice( $values, $i + 1, 2 );
+        if( !empty( $result ) ){
+          $values[$i] = $result[0]; // changeEnumValue returns [ ExpToken ]
+          array_splice( $values, $i + 1, 2 );
+        }
       }      
     };
 
