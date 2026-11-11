@@ -939,6 +939,17 @@ extends SqlUtils
     ];
   }
 
+  public function resolveColumnsDirect(
+    ColumnResultType $columnResultType
+  ): void {
+    // Used when expression is already injected externally (inline select in include)
+    $this->tokens = $this->resolveHierarchyColumn( $this->resolveScopesAndTokens());
+    [ $this->script, $this->params ] = [
+      $this->resolveDialect()->resolveExprColumns( $this->tokens, false, $columnResultType ),
+      $this->resolveDialect()->resolveExprParams()
+    ];
+  }
+
   private function resolveClear(
   ): void {
     unset( $this->expression );
@@ -1162,7 +1173,8 @@ extends SqlUtils
   private function resolveIncludesDetails(
     array $tokens = [],
     ?Closure $where = null,
-    ?array $whereTokens = null
+    ?array $whereTokens = null,
+    ?array $selectTokens = null
   ): JoinDetail|null {
     [ $table, $_, $left
     ] = $tokens;
@@ -1192,6 +1204,10 @@ extends SqlUtils
               $joinDetail->joinWhere = $this->buildJoinWhereFromTokens( $whereTokens, $entityFromLeft );
             } elseif( $where !== null ){
               $joinDetail->joinWhere = $this->buildJoinWhere( $where, $entityFromLeft );
+            }
+
+            if( $selectTokens !== null ){
+              $joinDetail->columnsSelecteds = $this->buildJoinSelectFromTokens( $selectTokens, $entityFromLeft );
             }
 
             return $this->repository->registerIncludeLinear( $joinDetail );
@@ -1247,6 +1263,10 @@ extends SqlUtils
                     $joinDetail->joinWhere = $this->buildJoinWhere( $where, $entityFromLeft );
                   }
 
+                  if( $selectTokens !== null ){
+                    $joinDetail->columnsSelecteds = $this->buildJoinSelectFromTokens( $selectTokens, $entityFromLeft );
+                  }
+
                   return $this->repository->registerIncludeLinear( $joinDetail );
                 }
               }
@@ -1268,6 +1288,10 @@ extends SqlUtils
             $joinDetail->joinWhere = $this->buildJoinWhereFromTokens( $whereTokens, $entityFromLeft );
           } elseif( $where !== null ){
             $joinDetail->joinWhere = $this->buildJoinWhere( $where, $entityFromLeft );
+          }
+
+          if( $selectTokens !== null ){
+            $joinDetail->columnsSelecteds = $this->buildJoinSelectFromTokens( $selectTokens, $entityFromLeft );
           }
 
           return $this->repository->registerIncludeLinear( $joinDetail );
@@ -1301,6 +1325,26 @@ extends SqlUtils
 
     return new WhereResult(
       $subArrow->script, $subArrow->params
+    );
+  }
+
+  private function buildJoinSelectFromTokens(
+    array $selectTokens,
+    AbstractEntityStructure $entityStructure
+  ): array {
+    // selectTokens = tokens of fn( Entity $m ) => $m->col1, $m->col2
+    // Run through resolveColumns to get "alias.col As alias_col" strings
+    $subArrow = new ArrowToSql( $this->closure, $this->repository );
+    $subArrow->resolveExpressionType();
+    $subArrow->expression = $selectTokens;
+    $subArrow->uses       = $this->uses;
+    $subArrow->statics    = $this->statics;
+    $subArrow->resolveColumnsDirect( ColumnResultType::Select );
+
+    // script is array of [inner, outer] pairs — we need the outer "alias.col As alias_col" form
+    return array_map(
+      fn( array $pair ) => $pair[1] ?? $pair[0],
+      (array) $subArrow->script
     );
   }
 
@@ -1338,6 +1382,17 @@ extends SqlUtils
 
             return new ExpJoin(
               $this->resolveIncludesDetails( $baseTokens, null, $whereTokens ),
+              []
+            );
+          }
+
+          // detect ->select( fn(...) => ... ) chain inline
+          if( mb_strtolower( $tokens[ $i + 1 ]->value ) === "select" ){
+            $baseTokens   = $this->slice( $tokens, 0, $i );
+            $selectTokens = $this->slice( $tokens, $i + 3, -1 ); // tokens inside ->select( ... )
+
+            return new ExpJoin(
+              $this->resolveIncludesDetails( $baseTokens, null, null, $selectTokens ),
               []
             );
           }
