@@ -927,6 +927,18 @@ extends SqlUtils
     ];    
   }
 
+  public function resolveWheresDirect(
+    ColumnResultType $columnResultType
+  ): void {
+    // Used when expression is already injected externally (inline where in include)
+    $this->tokens = $this->resolveHierarchy( $this->resolveScopesAndTokens());
+    $this->tokens = $this->resolveSemanticsApply( $this->tokens );
+    [ $this->script, $this->params ] = [
+      $this->resolveDialect()->resolveExprWhere( $this->tokens, $columnResultType ),
+      $this->resolveDialect()->resolveExprParams()
+    ];
+  }
+
   private function resolveClear(
   ): void {
     unset( $this->expression );
@@ -1149,7 +1161,8 @@ extends SqlUtils
 
   private function resolveIncludesDetails(
     array $tokens = [],
-    ?Closure $where = null
+    ?Closure $where = null,
+    ?array $whereTokens = null
   ): JoinDetail|null {
     [ $table, $_, $left
     ] = $tokens;
@@ -1175,7 +1188,9 @@ extends SqlUtils
               $entityFromLeft->reflectionClass->getName()
             );
 
-            if( $where !== null ){
+            if( $whereTokens !== null ){
+              $joinDetail->joinWhere = $this->buildJoinWhereFromTokens( $whereTokens, $entityFromLeft );
+            } elseif( $where !== null ){
               $joinDetail->joinWhere = $this->buildJoinWhere( $where, $entityFromLeft );
             }
 
@@ -1226,7 +1241,9 @@ extends SqlUtils
                     $entityFromLeft->reflectionClass->getName()
                   );
 
-                  if( $where !== null ){
+                  if( $whereTokens !== null ){
+                    $joinDetail->joinWhere = $this->buildJoinWhereFromTokens( $whereTokens, $entityFromLeft );
+                  } elseif( $where !== null ){
                     $joinDetail->joinWhere = $this->buildJoinWhere( $where, $entityFromLeft );
                   }
 
@@ -1247,7 +1264,9 @@ extends SqlUtils
             $entityFromLeft->reflectionClass->getName()
           );
 
-          if( $where !== null ){
+          if( $whereTokens !== null ){
+            $joinDetail->joinWhere = $this->buildJoinWhereFromTokens( $whereTokens, $entityFromLeft );
+          } elseif( $where !== null ){
             $joinDetail->joinWhere = $this->buildJoinWhere( $where, $entityFromLeft );
           }
 
@@ -1267,6 +1286,24 @@ extends SqlUtils
     return $subArrow->getWhereResult( ColumnResultType::Where );
   }
 
+  private function buildJoinWhereFromTokens(
+    array $whereTokens,
+    AbstractEntityStructure $entityStructure
+  ): WhereResult {
+    // whereTokens = tokens of the fn(...) => ... expression inside ->where()
+    // We inject them directly as $this->expression so resolveWheres() can process them
+    $subArrow = new ArrowToSql( $this->closure, $this->repository );
+    $subArrow->resolveExpressionType();
+    $subArrow->expression  = $whereTokens;
+    $subArrow->uses        = $this->uses;
+    $subArrow->statics     = $this->statics;
+    $subArrow->resolveWheresDirect( ColumnResultType::Where );
+
+    return new WhereResult(
+      $subArrow->script, $subArrow->params
+    );
+  }
+
   private function resolveIncludesOfChilds(
     array $tokens = [],
     ?Closure $where = null
@@ -1274,6 +1311,8 @@ extends SqlUtils
     foreach( $tokens as $i => $token ){
       if( $token instanceof ExpToken ){
         if( $token->key === T_OBJECT_OPERATOR ){
+
+          // detect ->include( ... ) chain
           if( mb_strtolower( $tokens[ $i + 1 ]->value ) === "include" ){
             return 
               new ExpJoin(
@@ -1291,6 +1330,18 @@ extends SqlUtils
                 ),
               );
           }
+
+          // detect ->where( fn(...) => ... ) chain inline
+          if( mb_strtolower( $tokens[ $i + 1 ]->value ) === "where" ){
+            $baseTokens   = $this->slice( $tokens, 0, $i );
+            $whereTokens  = $this->slice( $tokens, $i + 3, -1 ); // tokens inside ->where( ... )
+
+            return new ExpJoin(
+              $this->resolveIncludesDetails( $baseTokens, null, $whereTokens ),
+              []
+            );
+          }
+
         }
       }
     }
