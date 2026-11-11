@@ -1332,8 +1332,6 @@ extends SqlUtils
     array $selectTokens,
     AbstractEntityStructure $entityStructure
   ): array {
-    // selectTokens = tokens of fn( Entity $m ) => $m->col1, $m->col2
-    // Run through resolveColumns to get "alias.col As alias_col" strings
     $subArrow = new ArrowToSql( $this->closure, $this->repository );
     $subArrow->resolveExpressionType();
     $subArrow->expression = $selectTokens;
@@ -1341,15 +1339,30 @@ extends SqlUtils
     $subArrow->statics    = $this->statics;
     $subArrow->resolveColumnsDirect( ColumnResultType::Select );
 
-    // resolveExprColumns returns array of string|array per column
-    // each array item is [inner, outer] — we need "outer" = "alias.col As alias_col"
     $result = [];
     foreach( (array) $subArrow->script as $item ){
       if( is_array( $item ) ){
-        // [0] = "alias.col As col", [1] = "alias.col As alias_col"
         $result[] = $item[1] ?? $item[0];
       } else {
         $result[] = $item;
+      }
+    }
+
+    // Always ensure the PK is included so hydration can detect duplicate rows
+    $pk    = $entityStructure->getPrimaryKey();
+    $alias = $entityStructure->getEntityAlias();
+
+    if( $pk !== null ){
+      $pkColumn = "{$alias}.{$pk} As {$alias}_{$pk}";
+      $alreadyIn = false;
+      foreach( $result as $col ){
+        if( str_contains( $col, "{$alias}_{$pk}" ) ){
+          $alreadyIn = true;
+          break;
+        }
+      }
+      if( !$alreadyIn ){
+        array_unshift( $result, $pkColumn );
       }
     }
 
