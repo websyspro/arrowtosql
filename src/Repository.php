@@ -9,6 +9,7 @@ use Websyspro\ArrowToSql\Enums\OrderByType;
 use Websyspro\ArrowToSql\Expressions\ExpJoin;
 use Websyspro\ArrowToSql\JoinArrowToSql;
 use Websyspro\ArrowToSql\Interfaces\AppendResultList;
+use Websyspro\Entity\Decorators\EntityList;
 use Websyspro\ArrowToSql\Interfaces\ColumnResult;
 use Websyspro\ArrowToSql\Interfaces\JoinDetail;
 use Websyspro\ArrowToSql\Interfaces\WhereResult;
@@ -519,14 +520,14 @@ implements RepositoryPublic, RepositoryInternal
       if( $isObj ){
         if( isset( $entity->{ $childCol } ) === false ){
           if( $childType === JoinType::List->name ){
-            $entity->{ $childCol } = new Collection();
+            $entity->{ $childCol } = new EntityList();
           } else {
             $entity->{ $childCol } = null;
           }
         }
       } else {
         if( isset( $entity[ $childCol ] ) === false ){
-          $entity[ $childCol ] = $childType === JoinType::List->name ? new Collection() : null;
+          $entity[ $childCol ] = $childType === JoinType::List->name ? new EntityList() : null;
         }
       }
 
@@ -814,6 +815,96 @@ implements RepositoryPublic, RepositoryInternal
     return $this;
   }
 
+  private function castToModel(
+    string $modelClass,
+    stdClass|array $data
+  ): mixed {
+    if( class_exists( $modelClass ) === false ){
+      return $data;
+    }
+
+    $model      = new $modelClass();
+    $reflection = new ReflectionClass( $modelClass );
+    $source     = is_array( $data ) ? (object) $data : $data;
+
+    // inicializa todas as ColumnAbstract properties para evitar "must not be accessed before initialization"
+    foreach( $reflection->getProperties() as $reflProp ){
+      if( $reflProp->isInitialized( $model ) ) continue;
+
+      $type     = $reflProp->getType();
+      $typeName = $type instanceof \ReflectionNamedType ? $type->getName() : null;
+
+      if( $typeName === null || class_exists( $typeName ) === false ) continue;
+
+      try {
+        $instance = new $typeName();
+        $reflProp->setValue( $model, $instance );
+      } catch( \Throwable ){
+        // ignora se não for possível instanciar sem argumentos
+      }
+    }
+
+    foreach( get_object_vars( $source ) as $prop => $value ){
+      if( $reflection->hasProperty( $prop ) === false ){
+        // campo extra (ex: aggregate) — aceita dinamicamente se a classe permitir
+        try {
+          $model->{ $prop } = $value;
+        } catch( \Throwable ){
+          // typed property sem valor default — ignora silenciosamente
+        }
+        continue;
+      }
+
+      $reflProp = $reflection->getProperty( $prop );
+      $type     = $reflProp->getType();
+      $typeName = $type instanceof \ReflectionNamedType ? $type->getName() : null;
+
+      // relacionamento EntityList — cast recursivo dos itens usando o atributo #[EntityList(Entity::class)]
+      if( $value instanceof EntityList ){
+        $entityAttr = $reflProp->getAttributes( EntityList::class );
+        $itemClass  = empty( $entityAttr ) ? null : $entityAttr[0]->newInstance()->getEntity();
+
+        if( $itemClass !== null && class_exists( $itemClass ) ){
+          $castedItems = array_map(
+            fn( $item ) => $this->castToModel( $itemClass, $item ),
+            $value->items
+          );
+          $model->{ $prop } = new EntityList( $itemClass, $castedItems );
+        } else {
+          $model->{ $prop } = $value;
+        }
+        continue;
+      }
+
+      // relacionamento Collection aninhado — mantém como Collection
+      if( $value instanceof Collection ){
+        $model->{ $prop } = $value;
+        continue;
+      }
+
+      // objeto aninhado (relação 1:1) — cast recursivo se o type hint for uma classe
+      if( $value instanceof stdClass && $typeName !== null && class_exists( $typeName ) ){
+        $model->{ $prop } = $this->castToModel( $typeName, $value );
+        continue;
+      }
+
+      // campo escalar — se a property já foi inicializada com ColumnAbstract, usa setValue()
+      $currentVal = $reflProp->isInitialized( $model ) ? $reflProp->getValue( $model ) : null;
+      if( $currentVal instanceof \Websyspro\Entity\Types\ColumnAbstract ){
+        $currentVal->setValue( $value );
+        continue;
+      }
+
+      try {
+        $model->{ $prop } = $value;
+      } catch( \Throwable ){
+        // incompatibilidade de tipo — ignora
+      }
+    }
+
+    return $model;
+  }
+
   // public function includesLinears(
   // ): array {
   //   return $this->includesLinears;
@@ -825,14 +916,35 @@ implements RepositoryPublic, RepositoryInternal
   // }  
 
   public function row(
+    string|null $modelClass = null
   ): mixed {
-    return [];
+    $rows = $this->defineFetchToRows();
+
+    if( empty( $rows ) ){
+      return null;
+    }
+
+    $item = $rows[ array_key_first( $rows ) ];
+
+    if( $modelClass !== null ){
+      return $this->castToModel( $modelClass, $item );
+    }
+
+    return $item;
   }
   
   public function rows(
+    string|null $modelClass = null
   ): Collection {
-    return new Collection(
-      $this->defineFetchToRows()
-    );
+    $items = $this->defineFetchToRows();
+
+    if( $modelClass !== null ){
+      $items = array_map(
+        fn( $item ) => $this->castToModel( $modelClass, $item ),
+        $items
+      );
+    }
+
+    return new Collection( $items );
   }
 }
