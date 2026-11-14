@@ -384,7 +384,7 @@ implements RepositoryPublic, RepositoryInternal
     }
 
     $propType = $reflection->getProperty( $column )->getType();
-    $typeName = $propType instanceof \ReflectionNamedType
+    $typeName = $propType instanceof ReflectionNamedType
       ? $propType->getName()
       : null;
 
@@ -503,10 +503,10 @@ implements RepositoryPublic, RepositoryInternal
     bool $isObj
   ): void {
     foreach( $expJoin->includes as $childExpJoin ){
-      $childAlias   = $childExpJoin->joinDetail->alias;
-      $childPk      = $childExpJoin->joinDetail->aliasKey;
-      $childCol     = $childExpJoin->joinDetail->column;
-      $childType    = $childExpJoin->joinDetail->type;
+      $childAlias = $childExpJoin->joinDetail->alias;
+      $childPk = $childExpJoin->joinDetail->aliasKey;
+      $childCol = $childExpJoin->joinDetail->column;
+      $childType = $childExpJoin->joinDetail->type;
 
       // usa a PK real da entidade filho para detecção de duplicata
       // aliasKey é a chave de junção (ex: contatoId), não necessariamente a PK da entidade
@@ -608,8 +608,8 @@ implements RepositoryPublic, RepositoryInternal
     ExpJoin $expJoin,
     array &$pkIndex = []
   ): array {
-    $result     = [];
-    $alias      = $expJoin->joinDetail->alias;
+    $result = [];
+    $alias = $expJoin->joinDetail->alias;
     $primaryKey = $expJoin->joinDetail->aliasKey;
 
     if( isset( $pkIndex[ $alias ] ) === false ){
@@ -617,13 +617,13 @@ implements RepositoryPublic, RepositoryInternal
     }
 
     foreach( $rows as $rawRow ){
-      $row     = (array) $rawRow;
-      $pkValue = $row[ $alias . "_" . $primaryKey ] ?? null;
+      $row  = (array)$rawRow;
+      $pkValue = $row[
+        "{$alias}_{$primaryKey}"
+      ] ?? null;
 
-      // quando a PK não foi selecionada (ex: groupBy/select customizado),
-      // usa a primeira coluna disponível com o prefixo do alias como chave
       if( $pkValue === null ){
-        $prefix = $alias . "_";
+        $prefix = "{$alias}_";
         foreach( $row as $colName => $colValue ){
           if( str_starts_with( $colName, $prefix ) && $colValue !== null ){
             $pkValue = $colValue;
@@ -825,15 +825,14 @@ implements RepositoryPublic, RepositoryInternal
       return $data;
     }
 
-    $model      = new $modelClass();
+    $model = new $modelClass();
     $reflection = new ReflectionClass( $modelClass );
-    $source     = is_array( $data ) ? (object) $data : $data;
+    $source = is_array( $data ) ? (object) $data : $data;
 
-    // inicializa todas as ColumnAbstract properties para evitar "must not be accessed before initialization"
     foreach( $reflection->getProperties() as $reflProp ){
       if( $reflProp->isInitialized( $model ) ) continue;
 
-      $type     = $reflProp->getType();
+      $type = $reflProp->getType();
       $typeName = $type instanceof ReflectionNamedType ? $type->getName() : null;
 
       if( $typeName === null || class_exists( $typeName ) === false ) continue;
@@ -841,30 +840,26 @@ implements RepositoryPublic, RepositoryInternal
       try {
         $instance = new $typeName();
         $reflProp->setValue( $model, $instance );
-      } catch( Throwable ){
-        // ignora se não for possível instanciar sem argumentos
-      }
+      } catch( Throwable ){}
     }
 
     foreach( get_object_vars( $source ) as $prop => $value ){
       if( $reflection->hasProperty( $prop ) === false ){
-        // campo extra (ex: aggregate) — aceita dinamicamente se a classe permitir
         try {
           $model->{ $prop } = $value;
-        } catch( Throwable ){
-          // typed property sem valor default — ignora silenciosamente
-        }
+        } catch( Throwable ){}
         continue;
       }
 
       $reflProp = $reflection->getProperty( $prop );
-      $type     = $reflProp->getType();
-      $typeName = $type instanceof \ReflectionNamedType ? $type->getName() : null;
+      $type = $reflProp->getType();
+      $typeName = $type instanceof ReflectionNamedType ? $type->getName() : null;
 
-      // relacionamento EntityList — cast recursivo dos itens usando o atributo #[EntityList(Entity::class)]
       if( $value instanceof EntityList ){
         $entityAttr = $reflProp->getAttributes( EntityList::class );
-        $itemClass  = empty( $entityAttr ) ? null : $entityAttr[0]->newInstance()->getEntity();
+        $itemClass  = empty( $entityAttr ) === false
+          ? $entityAttr[0]->newInstance()->getEntity()
+          : null;
 
         if( $itemClass !== null && class_exists( $itemClass ) ){
           $castedItems = array_map(
@@ -878,19 +873,16 @@ implements RepositoryPublic, RepositoryInternal
         continue;
       }
 
-      // relacionamento Collection aninhado — mantém como Collection
       if( $value instanceof Collection ){
         $model->{ $prop } = $value;
         continue;
       }
 
-      // objeto aninhado (relação 1:1) — cast recursivo se o type hint for uma classe
       if( $value instanceof stdClass && $typeName !== null && class_exists( $typeName ) ){
         $model->{ $prop } = $this->castToModel( $typeName, $value );
         continue;
       }
 
-      // campo escalar — se a property já foi inicializada com ColumnAbstract, usa setValue()
       $currentVal = $reflProp->isInitialized( $model ) ? $reflProp->getValue( $model ) : null;
       if( $currentVal instanceof ColumnAbstract ){
         $currentVal->setValue( $value );
@@ -899,9 +891,7 @@ implements RepositoryPublic, RepositoryInternal
 
       try {
         $model->{ $prop } = $value;
-      } catch( Throwable ){
-        // incompatibilidade de tipo — ignora
-      }
+      } catch( Throwable ){}
     }
 
     return $model;
@@ -916,27 +906,33 @@ implements RepositoryPublic, RepositoryInternal
       return null;
     }
 
-    $item = $rows[ array_key_first( $rows ) ];
-
     if( $modelClass !== null ){
-      return $this->castToModel( $modelClass, $item );
+      return $this->castToModel(
+        $modelClass, $rows[ 
+          array_key_first( $rows )
+        ]
+      );
     }
 
-    return $item;
+    return $rows[
+      array_key_first( $rows )
+    ];
   }
   
   public function rows(
     string|null $modelClass = null
   ): Collection {
-    $items = $this->defineFetchToRows();
-
     if( $modelClass !== null ){
-      $items = array_map(
-        fn( $item ) => $this->castToModel( $modelClass, $item ),
-        $items
+      return new Collection(
+        array_map( fn( $item ) => $this->castToModel(
+          $modelClass, $item
+          ), $this->defineFetchToRows()
+        )
       );
     }
 
-    return new Collection( $items );
+    return new Collection(
+      $this->defineFetchToRows()
+    );
   }
 }
