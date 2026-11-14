@@ -238,7 +238,9 @@ implements RepositoryPublic, RepositoryInternal
   ): string|null {
     if( isset( $this->groupByResult )){
       return sprintf( 
-        "Group By %s", implode( ",", $this->groupByResult->script )
+        "Group By %s", implode( 
+          ",", $this->groupByResult->script
+        )
       );
     }
 
