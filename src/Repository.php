@@ -2,6 +2,7 @@
 
 namespace Websyspro\ArrowToSql;
 
+use ReflectionNamedType;
 use stdClass;
 use Websyspro\ArrowToSql\Enums\ColumnResultType;
 use Websyspro\ArrowToSql\Enums\JoinType;
@@ -22,6 +23,7 @@ use Websyspro\Entity\Schemas\SqlServerEntityStructure;
 use Websyspro\Connection\Database;
 use Websyspro\ArrowToSql\Interfaces\RepositoryInternal;
 use Websyspro\ArrowToSql\Interfaces\RepositoryPublic;
+use Websyspro\Entity\Types\ColumnAbstract;
 use Websyspro\Utils\Collection;
 use function is_object;
 use function is_array;
@@ -832,14 +834,14 @@ implements RepositoryPublic, RepositoryInternal
       if( $reflProp->isInitialized( $model ) ) continue;
 
       $type     = $reflProp->getType();
-      $typeName = $type instanceof \ReflectionNamedType ? $type->getName() : null;
+      $typeName = $type instanceof ReflectionNamedType ? $type->getName() : null;
 
       if( $typeName === null || class_exists( $typeName ) === false ) continue;
 
       try {
         $instance = new $typeName();
         $reflProp->setValue( $model, $instance );
-      } catch( \Throwable ){
+      } catch( Throwable ){
         // ignora se não for possível instanciar sem argumentos
       }
     }
@@ -849,7 +851,7 @@ implements RepositoryPublic, RepositoryInternal
         // campo extra (ex: aggregate) — aceita dinamicamente se a classe permitir
         try {
           $model->{ $prop } = $value;
-        } catch( \Throwable ){
+        } catch( Throwable ){
           // typed property sem valor default — ignora silenciosamente
         }
         continue;
@@ -890,30 +892,20 @@ implements RepositoryPublic, RepositoryInternal
 
       // campo escalar — se a property já foi inicializada com ColumnAbstract, usa setValue()
       $currentVal = $reflProp->isInitialized( $model ) ? $reflProp->getValue( $model ) : null;
-      if( $currentVal instanceof \Websyspro\Entity\Types\ColumnAbstract ){
+      if( $currentVal instanceof ColumnAbstract ){
         $currentVal->setValue( $value );
         continue;
       }
 
       try {
         $model->{ $prop } = $value;
-      } catch( \Throwable ){
+      } catch( Throwable ){
         // incompatibilidade de tipo — ignora
       }
     }
 
     return $model;
   }
-
-  // public function includesLinears(
-  // ): array {
-  //   return $this->includesLinears;
-  // }
-
-  // public function includesRelateds(
-  // ): array {
-  //   return $this->includesRelateds;
-  // }  
 
   public function row(
     string|null $modelClass = null
