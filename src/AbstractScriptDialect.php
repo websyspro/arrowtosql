@@ -645,9 +645,18 @@ extends SqlUtils
     bool $depth = false,
     ColumnResultType $columnResultType = ColumnResultType::Select
   ): string|array {
+    $resolvedColumns = $this->resolveExprColumns( $expr->childs, $depth, $columnResultType );
+    
+    // Se houver múltiplos elementos (como em operações: campo * campo), concatenamos
+    if (is_array($resolvedColumns) && count($resolvedColumns) > 1) {
+      $innerExpression = implode(' ', $resolvedColumns);
+    } else {
+      $innerExpression = is_array($resolvedColumns) ? ($resolvedColumns[0] ?? '') : $resolvedColumns;
+    }
+    
     $exprMethod = sprintf( "%s(%s)",
       $this->resolveExprColumnMethodName( $expr->name ), 
-      $this->resolveExprColumns( $expr->childs, $depth, $columnResultType )[0]
+      $innerExpression
     );
 
     $expr = $this->resolveExprColumnMethodNotExists($expr);
