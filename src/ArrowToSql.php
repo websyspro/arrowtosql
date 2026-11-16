@@ -36,6 +36,7 @@ use Websyspro\ArrowToSql\Expressions\ExpSubQuery;
 use Websyspro\ArrowToSql\Expressions\ExpToken;
 use Websyspro\ArrowToSql\Expressions\ExpUnary;
 use Websyspro\ArrowToSql\Expressions\ExpValue;
+use Websyspro\ArrowToSql\Query\Clauses\WhereClause;
 use Websyspro\Connection\Enums\DriverType;
 use Websyspro\Entity\Interfaces\ColumnType;
 use Websyspro\Entity\Interfaces\ForeignKeyStructure;
@@ -1306,8 +1307,8 @@ extends SqlUtils
     Closure $where,
     AbstractEntityStructure $entityStructure
   ): WhereResult {
-    $subArrow = new ArrowToSql( $where, $this->repository );
-    return $subArrow->getWhereResult( ColumnResultType::Where );
+    // Mesma regra do Where principal (ver Query\Clauses\WhereClause)
+    return WhereClause::compile( $where, $this->repository );
   }
 
   private function buildJoinWhereFromTokens(
