@@ -102,7 +102,8 @@ extends SqlUtils
         ];
       } else
       if( $expr instanceof ExpMethod ){
-        [ $expr ] = $expr->childs;
+        $expr = $this->firstExprField( $expr->childs );
+        if( $expr === null ) return [ $column ];
         
         if( Database::driverIsPostgres() ){
           return [
@@ -592,7 +593,7 @@ extends SqlUtils
   ): ExpMethod|ExpField {
     if( empty( $expr->methods )){
       if( $expr instanceof ExpMethod ){
-        [ $child ] = $expr->childs;
+        $child = $this->firstExprField( $expr->childs );
         if( $child instanceof ExpField ){
           $expr->methods = [
             new ExpFieldMethod(
@@ -624,6 +625,20 @@ extends SqlUtils
 
     return $expr;
   }
+
+  private function firstExprField( array $expressions ): ExpField|null {
+    foreach( $expressions as $expression ){
+      if( $expression instanceof ExpField ){
+        return $expression;
+      }
+      if( $expression instanceof ExpGroup || $expression instanceof ExpMethod ){
+        $field = $this->firstExprField( $expression->childs );
+        if( $field !== null ) return $field;
+      }
+    }
+
+    return null;
+  }
   
   private function resolveExprColumnField(
     ExpField $expr,
@@ -645,14 +660,19 @@ extends SqlUtils
     bool $depth = false,
     ColumnResultType $columnResultType = ColumnResultType::Select
   ): string|array {
-    $resolvedColumns = $this->resolveExprColumns( $expr->childs, $depth, $columnResultType );
-    
-    // Se houver múltiplos elementos (como em operações: campo * campo), concatenamos
-    if (is_array($resolvedColumns) && count($resolvedColumns) > 1) {
-      $innerExpression = implode(' ', $resolvedColumns);
-    } else {
-      $innerExpression = is_array($resolvedColumns) ? ($resolvedColumns[0] ?? '') : $resolvedColumns;
-    }
+    $isSum = $expr->name === MethodList::Sum->value;
+    $resolvedColumns = $this->resolveExprColumns(
+      $expr->childs,
+      $isSum ? true : $depth,
+      $isSum ? ColumnResultType::None : $columnResultType
+    );
+
+    // Dentro do SUM, os campos devem ser expressões simples sem aliases. Isso
+    // preserva operadores (ex.: ValorUnitario * Quantidade) e evita "Array".
+    $innerExpression = implode( " ", array_map(
+      fn( string|array $part ) => $this->resolveColumnFragment( $part ),
+      $resolvedColumns
+    ));
     
     $exprMethod = sprintf( "%s(%s)",
       $this->resolveExprColumnMethodName( $expr->name ), 
@@ -669,6 +689,14 @@ extends SqlUtils
     }
 
     return $exprMethod;
+  }
+
+  private function resolveColumnFragment( string|array $fragment ): string {
+    if( is_array( $fragment )){
+      return $this->resolveColumnFragment( $fragment[0] ?? "" );
+    }
+
+    return $fragment;
   }
 
   private function resolveExprColumnSeparator(
