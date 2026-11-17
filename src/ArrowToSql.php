@@ -424,10 +424,19 @@ extends SqlUtils
       )
     );
 
+    $entityStructure = $this->repository->getEntityStructureByString($this->scopes[ (string)$childs[0]->value ]);
+    $columnType = $entityStructure->getColumnType( $entityStructureColumn );
+    
+    // Para EntityList, usa o nome da propriedade diretamente
+    $columnName = ($columnType === 'EntityList') 
+      ? $entityStructureColumn 
+      : $entityStructure->getColumnName( $entityStructureColumn );
+
     return new ExpField(
-      $this->repository->getEntityStructureByString($this->scopes[ (string)$childs[0]->value ])->getEntityAlias(),
-      $this->repository->getEntityStructureByString($this->scopes[ (string)$childs[0]->value ])->getColumnName( $entityStructureColumn ),
-      $this->repository->getEntityStructureByString($this->scopes[ (string)$childs[0]->value ])->getColumnType( $entityStructureColumn ), $columnMethods
+      $entityStructure->getEntityAlias(),
+      $columnName,
+      $columnType, 
+      $columnMethods
     );
   }
 
@@ -903,7 +912,7 @@ extends SqlUtils
   }
 
   private function resolveDialect(
-  ): MySqlScriptDialect|SqlLiteScriptDialect|SqlServerScriptDialect|PostgresScriptDialect {
+  ): AbstractScriptDialect {
     if( isset( $this->scriptDialect )){
       return $this->scriptDialect;
     }
@@ -1403,8 +1412,9 @@ extends SqlUtils
             $baseTokens   = $this->slice( $tokens, 0, $i );
             $whereTokens  = null;
             $selectTokens = null;
+            $childIncludes = [];
 
-            // scan remaining tokens for ->where and ->select at the top level
+            // scan remaining tokens for ->where, ->select, and ->include at the top level
             $rest = $this->slice( $tokens, $i );
             $j = 0;
             while( $j < count( $rest ) ){
@@ -1431,6 +1441,18 @@ extends SqlUtils
                   }
                   $j = $end + 1;
                   continue;
+                } elseif( $methodName === "include" ){
+                  // found ->include() after select/where, process child includes
+                  $childIncludes = $this->mapper(
+                    $this->groupByTypes(
+                      [ T_COMMA ], $this->slice( $rest, $j + 3 ), false
+                    ), fn( array $joinChild ) => (
+                      $this->resolveIncludesOfChilds(
+                        $this->resolveScopesAndTokens( $joinChild )
+                      )
+                    )
+                  );
+                  break; // stop scanning after include
                 }
               }
               $j++;
@@ -1438,7 +1460,7 @@ extends SqlUtils
 
             return new ExpJoin(
               $this->resolveIncludesDetails( $baseTokens, null, $whereTokens, $selectTokens ),
-              []
+              $childIncludes
             );
           }
 

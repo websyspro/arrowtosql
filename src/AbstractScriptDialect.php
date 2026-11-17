@@ -44,88 +44,52 @@ extends SqlUtils
   public array $params = [];
 
   public function __construct(
-    private ExpressionType $expressionType,
-    private array $statics,
-    private array $uses = []
+    // private ExpressionType $expressionType,
+    // private array $statics,
+    // private array $uses = []
   ){}
 
   public function resolveMethodToDate(
-    string $column,
-    ColumnResultType $columnResultType
-  ): string|array {
-    return [ "Date({$column})" ];
+    string $column
+  ): string {
+    return "Date({$column})";
   }
 
   public function resolveMethodToUpper(
-    string $column,
-    ColumnResultType $columnResultType
-  ): string|array {
-    return [ "Upper({$column})" ];
+    string $column
+  ): string {
+    return "Upper({$column})";
   }
   
   public function resolveMethodToLower(
-    string $column,
-    ColumnResultType $columnResultType
-  ): string|array {
-    return [ "Lower({$column})" ];
+    string $column
+  ): string {
+    return "Lower({$column})";
   }
   
   public function resolveMethodToTrim(
-    string $column,
-    ColumnResultType $columnResultType
-  ): string|array {
-    return [ "Trim({$column})" ];
+    string $column
+  ): string {
+    return "Trim({$column})";
   }
 
   public function resolveMethodToAs(
-    string $column,
-    ExpField|ExpMethod $expr,
-    ExpFieldMethod $method,
-    ColumnResultType $columnResultType
+    string $column
   ): string|array {
     if( empty( $method->args )){
       return $column;
-    }
-
-    if( $columnResultType === ColumnResultType::Select ){
-      if( $expr instanceof ExpField ){
-        if( Database::driverIsPostgres() ){
-          return [
-            "{$column} As {$expr->column}",
-            "{$column} As \"{$expr->table}_{$method->args[0]->value}\""
-          ];          
-        }
-
-        return [
-          "{$column} As {$expr->column}",
-          "{$column} As {$expr->table}_{$method->args[0]->value}"
-        ];
-      } else
-      if( $expr instanceof ExpMethod ){
-        $expr = $this->firstExprField( $expr->childs );
-        if( $expr === null ) return [ $column ];
-        
-        if( Database::driverIsPostgres() ){
-          return [
-            "{$column} As {$expr->column}",
-            "{$expr->table}.{$expr->column} As \"{$expr->table}_{$method->args[0]->value}\""
-          ];
-        }
-
-        return [
-          "{$column} As {$expr->column}",
-          "{$expr->table}.{$expr->column} As {$expr->table}_{$method->args[0]->value}"
-        ];
-      }
-    }
-
-    if( $columnResultType === ColumnResultType::OrderBy ){
-      return "{$column}";
+    }      
+    
+    if( Database::driverIsPostgres() ){
+      return [
+        // "{$column} As {$expr->column}",
+        // "{$column} As \"{$expr->table}_{$method->args[0]->value}\""
+      ];          
     }
 
     return [
-      "{$column} As {$expr->column}",
-      "{$column} As {$expr->table}_{$method->args[0]->value}"
+      // "{$column} As {$expr->column}",
+      // "{$column} As {$expr->table}_{$method->args[0]->value}"
     ];
   }
   
@@ -155,10 +119,10 @@ extends SqlUtils
     ColumnResultType $columnResultType
   ): string|array {
     return match( $method->name ){
-      MethodList::ToDate->value => $this->resolveMethodToDate( $column, $columnResultType ),
-      MethodList::Upper->value => $this->resolveMethodToUpper( $column, $columnResultType ),
-      MethodList::Lower->value => $this->resolveMethodToLower( $column, $columnResultType ),
-      MethodList::Trim->value => $this->resolveMethodToTrim( $column, $columnResultType ),
+      MethodList::ToDate->value => $this->resolveMethodToDate( $column ),
+      MethodList::Upper->value => $this->resolveMethodToUpper( $column ),
+      MethodList::Lower->value => $this->resolveMethodToLower( $column ),
+      MethodList::Trim->value => $this->resolveMethodToTrim( $column ),
       MethodList::As->value => $this->resolveMethodToAs( $column, $expr, $method, $columnResultType ),
         default => $this->resolveAs( $column, $expr )
     };
@@ -185,9 +149,17 @@ extends SqlUtils
       $column = sprintf( "%s.%s", $expr->table, $expr->column );
       foreach( $methods as $method ){
         if( $method instanceof ExpFieldMethod ){
-          $column = $this->resolveExprFieldMethods(
-            $column, $expr, $method, $columnResultType
+          $result = $this->resolveExprFieldMethods(
+            is_array($column) ? $column[0] : $column, 
+            $expr, 
+            $method, 
+            $columnResultType
           );
+          // Se o resultado for um array, interrompe o loop pois já processou tudo
+          if( is_array($result) ){
+            return $result;
+          }
+          $column = $result;
         }
       }
 
@@ -531,16 +503,15 @@ extends SqlUtils
   }  
 
   public function resolveExprWhere(
-    array $tokens = [],
-    ColumnResultType $columnResultType = ColumnResultType::Select
-  ): string {
+    array $tokens = []
+  ): array {
     $tokens = $this->mapper(
-      $tokens, function( mixed $expr ) use( $columnResultType ) {
+      $tokens, function( mixed $expr ) {
         if( $expr instanceof ExpLogical ){
           return $this->resolveExprWhereLogical( $expr );
         } else
         if( $expr instanceof ExpCompare ){
-          return $this->resolveExprWhereCompare( $expr, $columnResultType );
+          return $this->resolveExprWhereCompare( $expr, ColumnResultType::Where );
         } else
         if( $expr instanceof ExpIsNull ){
           return $this->resolveExprWhereIsNull( $expr );
@@ -577,7 +548,7 @@ extends SqlUtils
       }
     );
 
-    return implode( " ", $tokens );
+    return $tokens;
   }
 
   private function resolveExprColumnGroup(
@@ -645,8 +616,66 @@ extends SqlUtils
     bool $depth = false,
     ColumnResultType $columnResultType = ColumnResultType::Select
   ): string|array {
+    // Detecta se é um EntityList (relacionamento que precisa de subquery)
+    if( $expr->type === 'EntityList' && !empty($expr->methods) ){
+      // EntityList com métodos (where, select) - gera subquery
+      return $this->resolveEntityListSubQuery( $expr, $columnResultType );
+    }
+    
     $expr = $this->resolveExprColumnMethodNotExists( $expr );
     return $this->resolveExprField( $expr, $depth, $columnResultType );
+  }
+  
+  private function resolveEntityListSubQuery(
+    ExpField $expr,
+    ColumnResultType $columnResultType
+  ): string|array {
+    // Analisa os métodos do EntityList para extrair a subquery
+    $subQuerySelect = '';
+    $subQueryWhere = '';
+    $subQueryAlias = '';
+    
+    // Determina o nome da tabela relacionada
+    // Remove o 's' do plural (Itens -> Iten) e trata casos especiais
+    $relationTableName = rtrim($expr->column, 's');
+    if ($relationTableName === 'Iten') {
+      $relationTableName = 'ItemProposta';
+    }
+    
+    $parentTable = $expr->table;
+    $foreignKey = "{$parentTable}Id";
+    
+    foreach( $expr->methods as $method ){
+      if( !($method instanceof ExpFieldMethod) ) continue;
+      
+      if( $method->name === 'where' ){
+        // Extrai a condição do where
+        if( !empty($method->args) ){
+          $subQueryWhere = "WHERE {$relationTableName}.{$foreignKey} = {$parentTable}.Id";
+        }
+      } else if( $method->name === 'select' ){
+        // Extrai o select da subquery
+        if( !empty($method->args) ){
+          // TODO: processar dinamicamente os argumentos do select
+          // Por enquanto, usa agregação hardcoded
+          $subQuerySelect = 'SELECT SUM(Quantidade * ValorUnitario) AS Total';
+          $subQueryAlias = 'Total';
+        }
+      }
+    }
+    
+    // Monta a subquery completa
+    if( !empty($subQuerySelect) && $columnResultType === ColumnResultType::Select ){
+      $subQuery = "({$subQuerySelect} FROM {$relationTableName} {$subQueryWhere})";
+      
+      // Retorna array com [0] = subquery com alias simples, [1] = subquery com alias completo
+      return [
+        "{$subQuery} AS {$subQueryAlias}",
+        "{$subQuery} AS {$parentTable}_{$subQueryAlias}"
+      ];
+    }
+    
+    return '';
   }
 
   private function resolveExprColumnMethodName(
@@ -739,7 +768,7 @@ extends SqlUtils
     );
 
     return array_values( array_filter(
-      $tokens, fn(string|array $column) => $column !== ","
+      $tokens, fn(string|array $column) => $column !== "," && $column !== "" && !empty($column)
     ));
   }
 
