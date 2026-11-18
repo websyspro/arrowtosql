@@ -94,8 +94,7 @@ class Repository
   
   public static function inRuntime(
     string $entity,
-    Parser $parserWhere,
-    Parser $parserSelect
+    Parser $parserWhere
   ): Repository {
     $repo = new static( $entity );
     
@@ -103,9 +102,9 @@ class Repository
       $repo->expressionWhere = new ExpressionWhere( $parserWhere, $repo );
     }
 
-    if( $parserSelect !== null ){
-      $repo->expressionSelect = new ExpressionSelect( $parserSelect, $repo );
-    }    
+    // if( $parserSelect !== null ){
+    //   $repo->expressionSelect = new ExpressionSelect( $parserSelect, $repo );
+    // }    
 
     return $repo;
   }

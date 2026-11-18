@@ -7,9 +7,9 @@ extends AbstractExpType
 {  
   public function __construct(
     public string $table,
-    public string $name,
-    public array $methods = [],
-    public array $childs = [],
+    public string $descriptor,
+    public array $closures = [],
+    public array $childs = []
   ){
     parent::__construct();
   }

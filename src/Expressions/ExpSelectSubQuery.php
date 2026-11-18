@@ -13,7 +13,7 @@ extends AbstractExpType
     public string $column,
     public string $columnAs,
     public string $tableSubQuery,
-    public Repository $repository
+    public RepositoryInRuntime $repositoryInRuntime
   ){
     parent::__construct();
   }

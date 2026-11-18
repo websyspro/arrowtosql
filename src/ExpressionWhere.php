@@ -565,13 +565,13 @@ extends ParserUtils
               [ $exprFieldB, ,$exprValueB ] = $tokens[$y]->childs;
 
               if( $exprFieldB instanceof ExpField && $exprValueB instanceof ExpValue ){
-                if( $exprFieldA->table === $exprFieldB->table && $exprFieldA->type === $exprFieldB->type ){
+                if( $exprFieldA->table === $exprFieldB->table && $exprFieldA->columnType === $exprFieldB->columnType ){
                   if( $exprFieldA->column === $exprFieldB->column && $tokens[$y - 1] instanceof ExpLogical && $tokens[$y - 1]->value === LogicalType::And->value ){
                     $tokens[$x] = new ExpBetween([
                       new ExpField(
                         $exprFieldA->table,
                         $exprFieldA->column,
-                        $exprFieldA->type, [
+                        $exprFieldA->columnType, [
                           new ExpFieldMethod(
                             MethodList::ToDate->value, 
                             MethodType::Modify, []
@@ -978,7 +978,7 @@ extends ParserUtils
         $this->resolveParams( 
           $this->resolveExprValue(
             $exprCompareRight->childs
-          ), ExpCompare::class, $exprCompareLeft->type, $this->parser->expressionType
+          ), ExpCompare::class, $exprCompareLeft->columnType, $this->parser->expressionType
         )
       );
     } else {
@@ -1168,5 +1168,6 @@ extends ParserUtils
   private function setClearVariables(
   ): void {
     unset( $this->repository, $this->abstractScriptDialect );
+    unset( $this->parser );
   }  
 }

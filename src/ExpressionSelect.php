@@ -10,13 +10,15 @@ use Websyspro\ArrowToSql\Expressions\ExpGroup;
 use Websyspro\ArrowToSql\Expressions\ExpMethod;
 use Websyspro\ArrowToSql\Expressions\ExpOperator;
 use Websyspro\ArrowToSql\Expressions\ExpSelectColumn;
+use Websyspro\ArrowToSql\Expressions\ExpSelectCount;
 use Websyspro\ArrowToSql\Expressions\ExpSelectSubQuery;
+use Websyspro\ArrowToSql\Expressions\ExpSelectSum;
 use Websyspro\ArrowToSql\Expressions\ExpSeparator;
-use Websyspro\ArrowToSql\Expressions\ExpToken;
 use Websyspro\Entity\Decorators\EntityList;
 
 use function is_array;
 use function sprintf;
+use function sizeof;
 
 class ExpressionSelect
 extends ParserUtils
@@ -36,24 +38,29 @@ extends ParserUtils
 
     $this->setHierarchyColumns();
     $this->setClearVariables();
-  } 
+  }
+
+  private function table(
+  ): string {
+    return $this->repository->getEntityStructure()->getEntityAlias();
+  }
 
   private function getHierackyColumnType(
     array $tokens = []
   ): string|null {
-    if( $this->isTypeGroup( $tokens )){
+    if( ParserUtils::isTypeGroup( $tokens )){
       return ExpGroup::class;
     } else 
-    if( $this->isTypeColumnMethod( $tokens )){
+    if( ParserUtils::isTypeColumnMethod( $tokens )){
       return ExpMethod::class;
     } else 
-    if( $this->isTypeColumnSeparator( $tokens )){
+    if( ParserUtils::isTypeColumnSeparator( $tokens )){
       return ExpSeparator::class;
     } else
-    if( $this->isTypeColumnField( $tokens )){
+    if( ParserUtils::isTypeColumnField( $tokens )){
       return ExpField::class;
     } else
-    if( $this->isTypeColumnOperator( $tokens )){
+    if( ParserUtils::isTypeColumnOperator( $tokens )){
       return ExpOperator::class;
     } 
       
@@ -61,50 +68,68 @@ extends ParserUtils
   }
   
   private function resolveHierarchyToExpColumnGroup(
-    array $childs = []
+    array $tokens = []
   ): ExpGroup {
     return new ExpGroup(
       $this->resolveHierarchyColumns( 
-        $this->slice( $childs, 1, -1 )
+        $this->slice( $tokens, 1, -1 )
       )
     );
   }
 
   private function resolveHierarchyToExpColumnField(
-    array $childs = []
+    array $tokens = []
   ): ExpField {
-    return $this->resolveField( $childs );
-  }  
+    return $this->resolveField( $tokens );
+  } 
+  
+  private function descriptor(
+    array $expr = []
+  ): string {
+    [ $_, $_, $descriptor ] = $expr;
+    return MethodList::from( $descriptor->value )->name;
+  }
 
-  private function resolveHierarchyToExpColumnMethod(
-    array $childs = []
-  ): ExpMethod {
-    $columnMethods = $this->mapper(
+  private function closure(
+    array $expr = []
+  ): array {
+    return $this->mapper(
       $this->groupByTypes(
         [ T_OBJECT_OPERATOR ], $this->slice(
-          $childs, sizeof(
+          $expr, sizeof(
             $this->contextsNotEnds(
-              $this->slice( $childs, 4 )
+              $this->slice( $expr, 4 )
             )
           ) + 6
         )
-      ), fn( array $methods ) => (
+      ), fn( array $method ) => (
         new ExpFieldMethod(
-          $methods[0]->value, 
-          $this->resolveFieldMethodType( $methods[0]->value ),
-          $this->slice( $methods, 2, -1 )
+          $method[0]->value, 
+          $this->resolveFieldMethodType( $method[0]->value ),
+          $this->slice( $method, 2, -1 )
         )
       )
     );
+  }
 
-    [ $scopeStr ] = array_values(
-      $this->parser->scopes
+  private function childs(
+    array $expr = []
+  ): array {
+    return $this->resolveHierarchyColumns(
+      $this->contextsNotEnds( $this->slice( 
+        $expr, $this->indexOf( $expr, T_START_PARENTESES ) + 1, -1
+      ))
     );
+  }
 
+  private function resolveHierarchyToExpColumnMethod(
+    array $expr = []
+  ): ExpMethod {
     return new ExpMethod(
-      $this->repository->getEntityStructureByString( $scopeStr )->entityNames->alias, $childs[2]->value, $columnMethods, $this->resolveHierarchyColumns(
-        $this->slice( $childs, $this->indexOf( $childs, T_START_PARENTESES ) + 1, -1 )
-      )
+      table: $this->table(), 
+      descriptor: $this->descriptor( $expr ),
+      closures: $this->closure( $expr ),
+      childs: $this->childs( $expr )
     );
   }
   
@@ -143,59 +168,8 @@ extends ParserUtils
   private function resolveExprColumnGroup(
     ExpGroup $expr,
     bool $depth = false
-  ): string {
-    return sprintf( "(%s)", $this->resolveExprColumns( $expr->childs, $depth ));
-  }
-
-  private function resolveEntityListSubQuery(
-    ExpField $expr
-  ): string|array {
-    // Analisa os métodos do EntityList para extrair a subquery
-    $subQuerySelect = '';
-    $subQueryWhere = '';
-    $subQueryAlias = '';
-    
-    // Determina o nome da tabela relacionada
-    // Remove o 's' do plural (Itens -> Iten) e trata casos especiais
-    $relationTableName = rtrim($expr->column, 's');
-    if ($relationTableName === 'Iten') {
-      $relationTableName = 'ItemProposta';
-    }
-    
-    $parentTable = $expr->table;
-    $foreignKey = "{$parentTable}Id";
-    
-    foreach( $expr->methods as $method ){
-      if( !($method instanceof ExpFieldMethod) ) continue;
-      
-      if( $method->name === 'where' ){
-        // Extrai a condição do where
-        if( !empty($method->args) ){
-          $subQueryWhere = "WHERE {$relationTableName}.{$foreignKey} = {$parentTable}.Id";
-        }
-      } else if( $method->name === 'select' ){
-        // Extrai o select da subquery
-        if( !empty($method->args) ){
-          // TODO: processar dinamicamente os argumentos do select
-          // Por enquanto, usa agregação hardcoded
-          $subQuerySelect = 'SELECT SUM(Quantidade * ValorUnitario) AS Total';
-          $subQueryAlias = 'Total';
-        }
-      }
-    }
-    
-    // Monta a subquery completa
-    if( !empty($subQuerySelect) ){
-      $subQuery = "({$subQuerySelect} FROM {$relationTableName} {$subQueryWhere})";
-      
-      // Retorna array com [0] = subquery com alias simples, [1] = subquery com alias completo
-      return [
-        "{$subQuery} AS {$subQueryAlias}",
-        "{$subQuery} AS {$parentTable}_{$subQueryAlias}"
-      ];
-    }
-    
-    return "";
+  ): ExpGroup {
+    return $expr;
   }
 
   private function firstExprField( 
@@ -214,46 +188,6 @@ extends ParserUtils
     return null;
   }  
 
-  private function resolveExprColumnMethodNotExists(
-    ExpMethod|ExpField $expr
-  ): ExpMethod|ExpField {
-    if( empty( $this->filterMethodsArr( $expr, [ MethodType::Alias ] ))){
-      if( $expr instanceof ExpMethod ){
-        $child = $this->firstExprField( $expr->childs );
-        if( $child instanceof ExpField ){
-          $expr->methods = [
-            ...$expr->methods,
-            new ExpFieldMethod(
-              MethodList::As->value,
-              MethodType::Alias, [
-                new ExpToken(
-                  T_CONSTANT_ENCAPSED_STRING, $child->column,
-                    TokenName::get( T_CONSTANT_ENCAPSED_STRING )
-                )
-              ]
-            )
-          ];
-        }
-      } else
-      if( $expr instanceof ExpField ){
-        $expr->methods = [
-          ...$expr->methods,
-          new ExpFieldMethod(
-            MethodList::As->value,
-            MethodType::Alias, [
-              new ExpToken(
-                T_CONSTANT_ENCAPSED_STRING, $expr->column,
-                  TokenName::get( T_CONSTANT_ENCAPSED_STRING )
-              )
-            ]
-          )
-        ];
-      }
-    }
-
-    return $expr;
-  }
-
   private function resolverExpSelectColumn(
     string $table,
     string $column,
@@ -264,19 +198,21 @@ extends ParserUtils
     );
   }
 
-  public function resolverColumnAs(
-    ExpField $expr
-  ): string {
-    $methodAlias = $this->filterMethodsArr(
+  public function resolveColumnAs(
+    ExpField|ExpMethod $expr
+  ): string|null {
+    $aliasOfClosures = $this->filterMethodsArr(
       $expr, [ MethodType::Alias ]
     );
 
-    if( empty( $methodAlias )){
-      return $expr->column;
+    if( empty( $aliasOfClosures )){
+      return $expr instanceof ExpField 
+        ? $expr->column 
+        : $expr->descriptor;
     }
 
-    [ $methodAs ] = $methodAlias;
-    return $methodAs->args[0]->value;
+    [ $alais ] = $aliasOfClosures;
+    return $alais->args[0]->value;
   }
   
   public function resolveExprField(
@@ -301,7 +237,7 @@ extends ParserUtils
       return $this->resolverExpSelectColumn(
         $expr->table, 
         $expr->column, 
-        $this->resolverColumnAs( $expr ) 
+        $this->resolveColumnAs( $expr ) 
       );      
     }
     
@@ -311,8 +247,7 @@ extends ParserUtils
   private function isMethodSubQuery(
     ExpField $expr
   ): bool {
-    return $expr->type === basename(EntityList::class) 
-        && !empty( $expr->methods );
+    return $expr->columnType === EntityList::class && !empty( $expr->closures );
   }
 
   private function resolveTokensFromMethodSelect(
@@ -333,25 +268,32 @@ extends ParserUtils
 
   private function resolveSubQuery(
     ExpField $expr
-  ): ExpSelectSubQuery {
-    return new ExpSelectSubQuery(
-      $expr->table,
-      $expr->column,
-      $this->resolverColumnAs( $expr ),
-      $expr->table,
-      RepositoryInRuntime::instance(
-        $this->resolveTokensFromMethodSelect( $expr ), 
+  ): ExpSelectSubQuery|null {
+    if( $expr->columnType === EntityList::class ){
+      $repositoryInRuntime = new RepositoryInRuntime(
+        $this->repository->getEntityStructure()->entityLists->items[ $expr->column ],
         $this->parser->uses, $this->parser->scopes, $this->parser->getClosure()
-      )
-    );
+      );
+
+      $repositoryInRuntime->setWheres( $this->resolveTokensFromMethodSelect( $expr ));
+      $repositoryInRuntime->setSelect( $this->resolveTokensFromMethodSelect( $expr ));
+
+      return new ExpSelectSubQuery(
+        $expr->table,
+        $expr->column,
+        $this->resolveColumnAs( $expr ),
+        $expr->table,
+        $repositoryInRuntime
+      );      
+    }
+
+    return null;
   }
   
   private function resolveExprColumnField(
     ExpField $expr,
     bool $depth = false
   ): ExpSelectColumn|ExpSelectSubQuery {
-    $expr = $this->resolveExprColumnMethodNotExists( $expr );
-
     if( $this->isMethodSubQuery( $expr )){
       return $this->resolveSubQuery( $expr );
     } else return $this->resolveExprField( $expr, $depth );
@@ -367,44 +309,14 @@ extends ParserUtils
     return $fragment;
   } 
   
-  private function resolveExprColumnMethodName(
-    string $name
-  ): string {
-    return MethodList::from( $name )->name;
-  }  
-
   private function resolveExprColumnMethod(
-    ExpMethod $expr,
-    bool $depth = false,
-  ): string|array {
-    $isSum = $expr->name === MethodList::Sum->value;
-    $resolvedColumns = $this->resolveExprColumns(
-      $expr->childs,
-      $isSum ? true : $depth
-    );
-
-    // Dentro do SUM, os campos devem ser expressões simples sem aliases. Isso
-    // preserva operadores (ex.: ValorUnitario * Quantidade) e evita "Array".
-    $innerExpression = implode( " ", array_map(
-      fn( string|array $part ) => $this->resolveColumnFragment( $part ),
-      $resolvedColumns
-    ));
-    
-    $exprMethod = sprintf( "%s(%s)",
-      $this->resolveExprColumnMethodName( $expr->name ), 
-      $innerExpression
-    );
-
-    $expr = $this->resolveExprColumnMethodNotExists($expr);
-    foreach( $this->filterMethodsArr($expr) as $method ){
-      if( $method instanceof ExpFieldMethod ){
-        // $exprMethod = $this->resolveExprFieldMethods(
-        //   $exprMethod, $method
-        // );
-      }
-    }
-
-    return $exprMethod;
+    ExpMethod $expr
+  ): ExpSelectSum|ExpSelectCount|null {
+    return match( $expr->descriptor ){
+      MethodList::Sum->name => new ExpSelectSum( $expr->table, $expr->descriptor, $this->resolveExprColumns( $expr->childs )),
+      MethodList::Count->name => new ExpSelectCount( $expr->table, $expr->descriptor, $this->resolveExprColumns( $expr->childs )),
+        default => null
+    };
   } 
   
   private function resolveExprColumnSeparator(
@@ -415,8 +327,8 @@ extends ParserUtils
   
   private function resolveExprColumnOperator(
     ExpOperator $expr
-  ): string {
-    return $expr->type;
+  ): ExpOperator {
+    return $expr;
   }  
 
   public function resolveExprColumns(
@@ -457,5 +369,6 @@ extends ParserUtils
   private function setClearVariables(
   ): void {
     unset( $this->repository, $this->abstractScriptDialect );
+    unset( $this->parser );
   }  
 }

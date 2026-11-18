@@ -13,6 +13,7 @@ use Websyspro\Entity\Decorators\EntityList;
 use function array_slice;
 use function in_array;
 use function defined;
+use function sizeof;
 use Closure;
 
 defined( 'T_START_PARENTESES' ) || define( 'T_START_PARENTESES', 40 );
@@ -87,6 +88,21 @@ class ParserUtils
 
     return $result;
   }
+
+  public static function where(
+    array $items,
+    Closure $closure
+  ): array {
+    $result = [];
+
+    foreach( $items as $item ){
+      if( $closure( $item )){
+        $result[] = $item;
+      }
+    }
+
+    return $result;
+  }  
   
   public function indexOf(
     array $tokens,
@@ -114,20 +130,31 @@ class ParserUtils
     return -1;
   }  
 
-  public function isTypeGroup(
+  public static function isTypeGroup(
     array $tokens = []
   ): bool {
     return $tokens[0]->key === T_START_PARENTESES;
   }
 
-  public function isTypeColumnMethod(
+  public static function isTypeColumnMethod(
     array $tokens = []
   ): bool {
     if( sizeof( $tokens ) < 3 ){
       return false;
     }
 
-    if( in_array( $tokens[2]->value, [ MethodList::Sum->value ]) === false){
+    $isColumnClosure = in_array( 
+      $tokens[2]->value, [ 
+        MethodList::Sum->value, 
+        MethodList::Count->value,
+        MethodList::Avg->value,
+        MethodList::Min->value,
+        MethodList::Max->value,
+        MethodList::Concat->value
+      ]
+    ) === false;
+
+    if( $isColumnClosure ){
       return false;
     }
 
@@ -137,7 +164,7 @@ class ParserUtils
         && $tokens[3]->key === T_START_PARENTESES;
   }
   
-  public function isTypeColumnSeparator(
+  public static function isTypeColumnSeparator(
     array $tokens = []
   ): bool {
     return in_array( $tokens[0]->key, [
@@ -145,39 +172,36 @@ class ParserUtils
     ]);
   }  
 
-  public function isField(
-    array $childs = []
+  public static function isField(
+    array $tokens = [],
+    array $columnsItems = []
   ): bool {
-    if( count( $childs ) < 3 ){
+    if( sizeof( $tokens ) < 3 ){
       return false;
     }
 
-    if( isset($this->parser->scopes[$childs[0]->value]) === false ){
-      return false;
-    }
-
-    $entityStructureColumns = $this->filter(
-      $this->repository->getEntityStructure()->columns->items, fn( string $column ) => (
-        $column === $childs[2]->value
+    $entityStructureColumns = ParserUtils::where(
+      $columnsItems, fn( string $column ) => (
+        $tokens[2]->value === $column
       )
     );
 
     $hasStructureTokens = (
-      $childs[0]->key === T_VARIABLE && 
-      $childs[1]->key === T_OBJECT_OPERATOR && 
-      $childs[2]->key === T_STRING
+      $tokens[0]->key === T_VARIABLE && 
+      $tokens[1]->key === T_OBJECT_OPERATOR && 
+      $tokens[2]->key === T_STRING
     );
 
     return empty($entityStructureColumns) !== 0 && $hasStructureTokens;
   }  
 
-  public function isTypeColumnField(
+  public static function isTypeColumnField(
     array $tokens = []
   ): bool {
-    return $this->isField( $tokens );
+    return ParserUtils::isField( $tokens );
   }  
 
-  public function isTypeColumnOperator(
+  public static function isTypeColumnOperator(
     array $tokens = []
   ): bool {
     return in_array( $tokens[0]->key, [
@@ -185,12 +209,23 @@ class ParserUtils
     ]);
   }  
 
+  public static function whereClousureByType(
+    ExpField|ExpMethod $expr,
+    array $methodList = [ MethodType::Modify, MethodType::Alias ]
+  ): array {
+    return ParserUtils::where(
+      $expr->closures, fn( ExpFieldMethod $expr ) => (
+        in_array( $expr->type, $methodList )
+      )
+    );    
+  }  
+
   public function filterMethodsArr(
     ExpField|ExpMethod $expr,
     array $methodList = [ MethodType::Modify, MethodType::Alias ]
   ): array {
     return $this->filter(
-      $expr->methods, fn( ExpFieldMethod $expr ) => (
+      $expr->closures, fn( ExpFieldMethod $expr ) => (
         in_array( $expr->type, $methodList )
       )
     );    
@@ -387,13 +422,12 @@ class ParserUtils
     );
 
     $columnType = $entityStructure->getColumnType( $entityStructureColumn );
-    
-    $columnName = ( $columnType === basename( EntityList::class )) 
-      ? $entityStructureColumn 
-      : $entityStructure->getColumnName( $entityStructureColumn );
+    $columnName = ( $columnType === EntityList::class ) 
+      ? $entityStructureColumn : $entityStructure->getColumnName( $entityStructureColumn );
 
     return new ExpField(
       $entityStructure->getEntityAlias(),
+      $columnName,
       $columnName,
       $columnType, 
       $columnMethods
