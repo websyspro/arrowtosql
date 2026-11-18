@@ -45,7 +45,7 @@ extends Repository
     return -1;
   }  
 
-  private function extractTokensFromString(
+  public function extractTokensByStr(
     string $value,
     array $tokens = []
   ): array {
@@ -61,8 +61,10 @@ extends Repository
   public function setWheres(
     array $tokens = []
   ): RepositoryInRuntime {
+
+
     $this->expressionWhere = new ExpressionWhere(
-      new Parser( RepositoryInRuntime::extractTokensFromString( "where", $tokens ), $this->uses, $this->scopes, $this->closure ), $this
+      new Parser( $tokens, $this->uses, $this->scopes, $this->closure ), $this
     );    
 
     return $this;
@@ -72,7 +74,7 @@ extends Repository
     array $tokens = []
   ): RepositoryInRuntime {
     $this->expressionSelect = new ExpressionSelect(
-      new Parser( RepositoryInRuntime::extractTokensFromString( "select", $tokens ), $this->uses, $this->scopes, $this->closure ), $this
+      new Parser( $tokens, $this->uses, $this->scopes, $this->closure ), $this
     );    
 
     return $this;

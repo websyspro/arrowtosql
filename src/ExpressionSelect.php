@@ -250,7 +250,7 @@ extends ParserUtils
     return $expr->columnType === EntityList::class && !empty( $expr->closures );
   }
 
-  private function resolveTokensFromMethodSelect(
+  private function extractTokensFromSubQuery(
     ExpField $expr
   ): array {
     $methods = $this->filterMethodsArr(
@@ -269,14 +269,17 @@ extends ParserUtils
   private function resolveSubQuery(
     ExpField $expr
   ): ExpSelectSubQuery|null {
-    if( $expr->columnType === EntityList::class ){
+    if( $this->isMethodSubQuery( $expr ) ){
       $repositoryInRuntime = new RepositoryInRuntime(
         $this->repository->getEntityStructure()->entityLists->items[ $expr->column ],
         $this->parser->uses, $this->parser->scopes, $this->parser->getClosure()
       );
 
-      $repositoryInRuntime->setWheres( $this->resolveTokensFromMethodSelect( $expr ));
-      $repositoryInRuntime->setSelect( $this->resolveTokensFromMethodSelect( $expr ));
+      $tokens = $this->extractTokensFromSubQuery( $expr );
+
+      $repositoryInRuntime
+        ->setWheres( ParserUtils::extractTokensFromStr( "where", $tokens ))
+        ->setSelect( ParserUtils::extractTokensFromStr( "select", $tokens ));
 
       return new ExpSelectSubQuery(
         $expr->table,
@@ -344,7 +347,7 @@ extends ParserUtils
           return $this->resolveExprColumnField( $expr, $depth );
         } else
         if( $expr instanceof ExpMethod ){
-          return $this->resolveExprColumnMethod( $expr, $depth );
+          return $this->resolveExprColumnMethod( $expr );
         } else
         if( $expr instanceof ExpSeparator ){
           return $this->resolveExprColumnSeparator( $expr );

@@ -8,7 +8,8 @@ extends AbstractExpType
   public function __construct(
     public string $method,
     public string $table,
-    public array $childs = []
+    public array $childs = [],
+    public mixed $repositoryInRuntime = null
   ){
     parent::__construct();
   }

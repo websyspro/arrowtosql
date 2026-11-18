@@ -128,7 +128,22 @@ class ParserUtils
     }
 
     return -1;
-  }  
+  } 
+  
+  public static function extractTokensFromStr(
+    string $value,
+    array $tokens,
+    int $cursor = -1
+  ): array {
+    foreach( $tokens as $cursor => $token ){
+      if( $token->key === T_STRING && $token->value === $value ){
+        $tokens = ParserUtils::sliceStatic( $tokens, bcadd( $cursor, 2 ));
+        return Parser::contextsNotEndsStatic( $tokens );
+      }
+    }
+
+    return [];
+  }
 
   public static function isTypeGroup(
     array $tokens = []

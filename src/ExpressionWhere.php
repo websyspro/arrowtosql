@@ -55,11 +55,38 @@ extends ParserUtils
     $this->setClearVariables();
   }
 
+  private function hierackyTypeDanying(
+    array $tokens = []
+  ): bool {
+    return $tokens[0]->key === T_NOT;
+  }  
+
   private function hierackyTypeGroup(
     array $tokens = []
   ): bool {
     return $tokens[0]->key === T_START_PARENTESES;
   }
+
+  private function resolveSubQueryMethod(
+    array $tokens = []
+  ): string|null {
+    $tokens = $this->slice(
+      $tokens, $this->indexOf( $tokens, T_FN ) - 2, 1
+    );
+
+    if( empty( $tokens )){
+      return null;
+    }
+
+    [ $token ] = $tokens;
+    return $token->value ?? null;    
+  }  
+
+  private function hierackyTypeSubQuery(
+    array $tokens = []
+  ): bool {
+    return in_array( $this->resolveSubQueryMethod( $tokens ), [ "any" ]);
+  }  
 
   private function hierackyTypeCompare(
     array $tokens = []
@@ -98,8 +125,12 @@ extends ParserUtils
   private function hierackyType(
     array $tokens = []
   ): string|null {
-    if( $this->hierackyTypeGroup( $tokens )){
+    if( $this->hierackyTypeDanying( $tokens )){
+      return ExpDenying::class;
+    } else if( $this->hierackyTypeGroup( $tokens )){
       return ExpGroup::class;
+    } else if( $this->hierackyTypeSubQuery( $tokens )){
+      return ExpSubQuery::class;
     } else if( $this->hierackyTypeLogical( $tokens )){
       return ExpLogical::class;
     } else if( $this->hierackyTypeCompare( $tokens )){
@@ -108,7 +139,7 @@ extends ParserUtils
       return ExpUnary::class;
     }
       
-    return null;
+    return null;    
   }
   
   private function hierackyTypeColumnMethod(
@@ -190,6 +221,16 @@ extends ParserUtils
     );
   }
 
+  private function resolveHierarchyToExpDenying(
+    array $childs = [],
+  ): ExpDenying {
+    return new ExpDenying(
+      $this->resolveHierarchy( 
+        $this->slice( $childs, 1 )
+      )
+    );
+  }  
+
   private function resolveHierarchyToExpGroup(
     array $childs = []
   ): ExpGroup {
@@ -199,6 +240,20 @@ extends ParserUtils
       )
     );
   }
+
+  private function resolveHierarchyToExpSubQuery(
+   array $tokens = []
+  ): ExpSubQuery {
+    $tokens = ExpressionWhereUtils::extractEntityAndWhere( $tokens );
+    
+
+    return new ExpSubQuery(
+      "", "", [], 
+      ExpressionWhereUtils::createRepositoryInRunTime( 
+        $tokens, $this->parser->uses, $this->parser->scopes, $this->parser->getClosure()
+      )
+    );
+  }  
 
   private function resolveHierarchyToExpLogical(
     array $childs = []
@@ -264,7 +319,9 @@ extends ParserUtils
     $tokens = $this->mapper(
       $this->groupByTypesLogical( $tokens ), fn( array $childs ) =>
         match( $this->hierackyType( $childs )){
+          ExpDenying::class => $this->resolveHierarchyToExpDenying( $childs ),
           ExpGroup::class => $this->resolveHierarchyToExpGroup( $childs ),
+          ExpSubQuery::class => $this->resolveHierarchyToExpSubQuery( $childs ),
           ExpLogical::class => $this->resolveHierarchyToExpLogical( $childs ),
           ExpCompare::class => $this->resolveHierarchyToExpCompare( $childs ),
           ExpUnary::class => $this->resolveHierarchyToExpUnary( $childs ),
@@ -359,7 +416,7 @@ extends ParserUtils
 
   private function setHierarchyColumns(
   ): void {
-    $this->parser->tokens = $this->resolveHierarchy( 
+    $this->parserScript = $this->resolveHierarchy( 
       $this->parser->tokens
     );
   }
@@ -684,7 +741,7 @@ extends ParserUtils
   private function resolveSemanticsImprovementsInUnary(
     array $tokens = []
   ): array {
-    for( $x=0; $x < count($tokens); $x++ ){
+    for( $x=0; $x < sizeof($tokens); $x++ ){
       if( $tokens[$x] instanceof ExpUnary ){
         [ $exprField ] = $tokens[$x]->childs;
         
@@ -744,11 +801,11 @@ extends ParserUtils
     $this->parser->tokens = $this->setSemanticsColumnApply( $this->parser->tokens );
   }
 
-  public function resolveExprWhereLogical(
-    ExpLogical $expr
-  ): string {
-    return $expr->value;
-  }
+  // public function resolveExprWhereLogical(
+  //   ExpLogical $expr
+  // ): string {
+  //   return $expr->value;
+  // }
 
   public function resolveExprFieldMethodArr(
     ExpField|ExpMethod $expr
@@ -963,153 +1020,153 @@ extends ParserUtils
     return $tokens;
   }   
   
-  public function resolveExprWhereCompare(
-    ExpCompare $expr
-  ): string {
-    [ $exprCompareLeft, $exprEqual, $exprCompareRight
-    ] = $expr->childs;
+  // public function resolveExprWhereCompare(
+  //   ExpCompare $expr
+  // ): string {
+  //   [ $exprCompareLeft, $exprEqual, $exprCompareRight
+  //   ] = $expr->childs;
 
-    $hasCompareExistValue = $exprCompareLeft instanceof ExpField && $exprCompareRight instanceof ExpValue 
-                         || $exprCompareLeft instanceof ExpValue && $exprCompareRight instanceof ExpField;
+  //   $hasCompareExistValue = $exprCompareLeft instanceof ExpField && $exprCompareRight instanceof ExpValue 
+  //                        || $exprCompareLeft instanceof ExpValue && $exprCompareRight instanceof ExpField;
 
-    if( $hasCompareExistValue ){
-      return sprintf( "%s %s %s",
-        $this->resolveExprField( $exprCompareLeft, false ), $exprEqual->value, 
-        $this->resolveParams( 
-          $this->resolveExprValue(
-            $exprCompareRight->childs
-          ), ExpCompare::class, $exprCompareLeft->columnType, $this->parser->expressionType
-        )
-      );
-    } else {
-      return sprintf( "%s %s %s",
-        $this->resolveExprField( $exprCompareLeft, false ), $exprEqual->value, 
-        $this->resolveExprField( $exprCompareRight, false )
-      );
-    }
-  }
+  //   if( $hasCompareExistValue ){
+  //     return sprintf( "%s %s %s",
+  //       $this->resolveExprField( $exprCompareLeft, false ), $exprEqual->value, 
+  //       $this->resolveParams( 
+  //         $this->resolveExprValue(
+  //           $exprCompareRight->childs
+  //         ), ExpCompare::class, $exprCompareLeft->columnType, $this->parser->expressionType
+  //       )
+  //     );
+  //   } else {
+  //     return sprintf( "%s %s %s",
+  //       $this->resolveExprField( $exprCompareLeft, false ), $exprEqual->value, 
+  //       $this->resolveExprField( $exprCompareRight, false )
+  //     );
+  //   }
+  // }
   
-  private function resolveExprWhereIsNull(
-    ExpIsNull $expr
-  ): string {
-    [ $exprField ] = $expr->childs;
-    return sprintf( "%s Is Null", $this->resolveExprField( $exprField ));
-  }
+  // private function resolveExprWhereIsNull(
+  //   ExpIsNull $expr
+  // ): string {
+  //   [ $exprField ] = $expr->childs;
+  //   return sprintf( "%s Is Null", $this->resolveExprField( $exprField ));
+  // }
 
-  private function resolveExprWhereIsNotNull(
-    ExpIsNotNull $expr
-  ): string {
-    [ $exprField ] = $expr->childs;
-    return sprintf( "%s Is Not Null", $this->resolveExprField( $exprField ));
-  }  
+  // private function resolveExprWhereIsNotNull(
+  //   ExpIsNotNull $expr
+  // ): string {
+  //   [ $exprField ] = $expr->childs;
+  //   return sprintf( "%s Is Not Null", $this->resolveExprField( $exprField ));
+  // }  
   
-  private function resolveExprWhereLike(
-    ExpLike $expr
-  ): string {
-    [ $exprField, $exprValue 
-    ] = $expr->childs;
+  // private function resolveExprWhereLike(
+  //   ExpLike $expr
+  // ): string {
+  //   [ $exprField, $exprValue 
+  //   ] = $expr->childs;
     
-    return sprintf( "%s Like %s",
-      $this->resolveExprField( $exprField ),
-      $this->resolveParams( 
-        $this->resolveExprValue(
-          $exprValue->childs
-        ), ExpLike::class, $exprField->type, $this->parser->expressionType
-      )
-    );
-  } 
+  //   return sprintf( "%s Like %s",
+  //     $this->resolveExprField( $exprField ),
+  //     $this->resolveParams( 
+  //       $this->resolveExprValue(
+  //         $exprValue->childs
+  //       ), ExpLike::class, $exprField->type, $this->parser->expressionType
+  //     )
+  //   );
+  // } 
   
-  private function resolveExprWhereNotLike(
-    ExpNotLike $expr
-  ): string {
-    [ $exprField, $exprValue
-    ] = $expr->childs;
+  // private function resolveExprWhereNotLike(
+  //   ExpNotLike $expr
+  // ): string {
+  //   [ $exprField, $exprValue
+  //   ] = $expr->childs;
     
-    return sprintf( "%s Not Like %s",
-      $this->resolveExprField( $exprField ),
-      $this->resolveParams( 
-        $this->resolveExprValue(
-          $exprValue->childs
-        ), ExpNotLike::class, $exprField->type, $this->parser->expressionType
-      )
-    );
-  }  
+  //   return sprintf( "%s Not Like %s",
+  //     $this->resolveExprField( $exprField ),
+  //     $this->resolveParams( 
+  //       $this->resolveExprValue(
+  //         $exprValue->childs
+  //       ), ExpNotLike::class, $exprField->type, $this->parser->expressionType
+  //     )
+  //   );
+  // }  
   
-  public function resolveExprWhereBetween(
-    ExpBetween $expr
-  ): string {
-    [ $exprField, $exprValueFrom, $exprValueTo 
-    ] = $expr->childs;
+  // public function resolveExprWhereBetween(
+  //   ExpBetween $expr
+  // ): string {
+  //   [ $exprField, $exprValueFrom, $exprValueTo 
+  //   ] = $expr->childs;
     
-    return sprintf( "%s Between %s And %s", 
-      $this->resolveExprField( $exprField ),
-      $this->resolveParams( 
-        $this->resolveExprValue(
-          $exprValueFrom->childs
-        ), ExpBetween::class, $exprField->type, $this->parser->expressionType
-      ),
-      $this->resolveParams( 
-        $this->resolveExprValue(
-          $exprValueTo->childs
-        ), ExpBetween::class, $exprField->type, $this->parser->expressionType
-      )
-    );
-  }
+  //   return sprintf( "%s Between %s And %s", 
+  //     $this->resolveExprField( $exprField ),
+  //     $this->resolveParams( 
+  //       $this->resolveExprValue(
+  //         $exprValueFrom->childs
+  //       ), ExpBetween::class, $exprField->type, $this->parser->expressionType
+  //     ),
+  //     $this->resolveParams( 
+  //       $this->resolveExprValue(
+  //         $exprValueTo->childs
+  //       ), ExpBetween::class, $exprField->type, $this->parser->expressionType
+  //     )
+  //   );
+  // }
   
-  private function resolveExprWhereDenying(
-    ExpDenying $expr
-  ): string {
-    return sprintf( "Not (%s)", $this->resolveExprWhere( $expr->childs ));
-  }
+  // private function resolveExprWhereDenying(
+  //   ExpDenying $expr
+  // ): string {
+  //   return sprintf( "Not (%s)", $this->resolveExprWhere( $expr->childs ));
+  // }
   
-  private function resolveExprWhereGroup(
-    ExpGroup $expr
-  ): string {
-    return sprintf( "(%s)", $this->resolveExprWhere( $expr->childs ));
-  }
+  // private function resolveExprWhereGroup(
+  //   ExpGroup $expr
+  // ): string {
+  //   return sprintf( "(%s)", $this->resolveExprWhere( $expr->childs ));
+  // }
   
-  private function resolveExprWhereIn(
-    ExpIn $expr
-  ): string {
-    [ $exprField, $exprValue
-    ] = $expr->childs;
+  // private function resolveExprWhereIn(
+  //   ExpIn $expr
+  // ): string {
+  //   [ $exprField, $exprValue
+  //   ] = $expr->childs;
     
-    return sprintf( "%s In %s", 
-      $this->resolveExprField( $exprField ),
-      $this->resolveParams( 
-        $this->resolveExprValue(
-          $exprValue->childs
-        ), ExpIn::class, $exprField->type, $this->parser->expressionType
-      )
-    );
-  }
+  //   return sprintf( "%s In %s", 
+  //     $this->resolveExprField( $exprField ),
+  //     $this->resolveParams( 
+  //       $this->resolveExprValue(
+  //         $exprValue->childs
+  //       ), ExpIn::class, $exprField->type, $this->parser->expressionType
+  //     )
+  //   );
+  // }
   
-  private function resolveExprWhereNotIn(
-    ExpNotIn $expr
-  ): string {
-    [ $exprField, $exprValue 
-    ] = $expr->childs;
+  // private function resolveExprWhereNotIn(
+  //   ExpNotIn $expr
+  // ): string {
+  //   [ $exprField, $exprValue 
+  //   ] = $expr->childs;
     
-    return sprintf( "%s Not In %s",
-      $this->resolveExprField( $exprField ),
-      $this->resolveParams( 
-        $this->resolveExprValue(
-          $exprValue->childs
-        ), ExpNotIn::class, $exprField->type, $this->parser->expressionType
-      )
-    );
-  }
+  //   return sprintf( "%s Not In %s",
+  //     $this->resolveExprField( $exprField ),
+  //     $this->resolveParams( 
+  //       $this->resolveExprValue(
+  //         $exprValue->childs
+  //       ), ExpNotIn::class, $exprField->type, $this->parser->expressionType
+  //     )
+  //   );
+  // }
   
-  private function resolveExprWhereSubQuery(
-    ExpSubQuery $expr
-  ): string {
-    return sprintf( "%s (Select 1 From %s Where %s)", 
-      match( $expr->method ){
-        "any" => "Exists",
-          default => "" 
-      }, $expr->table, $this->resolveExprWhere( $expr->childs )
-    );
-  }
+  // private function resolveExprWhereSubQuery(
+  //   ExpSubQuery $expr
+  // ): string {
+  //   return sprintf( "%s (Select 1 From %s Where %s)", 
+  //     match( $expr->method ){
+  //       "any" => "Exists",
+  //         default => "" 
+  //     }, $expr->table, $this->resolveExprWhere( $expr->childs )
+  //   );
+  // }
   
   public function resolveExprWhere(
     array $tokens = []
@@ -1162,7 +1219,7 @@ extends ParserUtils
 
   private function setScriptsAndParams(
   ): void {
-    $this->parserScript = $this->resolveExprWhere( $this->parser->tokens );
+    // $this->parserScript = $this->resolveExprWhere( $this->parser->tokens );
   }  
 
   private function setClearVariables(
