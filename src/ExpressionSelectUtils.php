@@ -90,7 +90,7 @@ class ExpressionSelectUtils
 
     return -1;    
   }
-  
+
   public static function createSpecializedASTExpFieldClosures(
     array $tokens,
     Parser $parser,
@@ -113,29 +113,33 @@ class ExpressionSelectUtils
           $whenTokens = ParserUtils::where( $extractsClosure, fn( ExpFieldMethod $expFieldMethod ) => $expFieldMethod->descriptor === MethodList::When->value );
           $elseTokens = ParserUtils::where( $extractsClosure, fn( ExpFieldMethod $expFieldMethod ) => $expFieldMethod->descriptor === MethodList::Else->value );
 
+          $whens = [];
           if( empty( $whenTokens ) === false ){
-            [ $when ] = ParserUtils::mapperStatic( $whenTokens, function( ExpFieldMethod $expFieldMethod ) use( $parser ) {
+            $whens = ParserUtils::mapperStatic( $whenTokens, function( ExpFieldMethod $expFieldMethod ) use( $parser ) {
               $expFieldMethod->args = ParserUtils::mapperStatic( ParserUtils::parserValue( $parser, $expFieldMethod->args ), fn( ExpToken $expToken ) => $expToken->value );
-              return $expFieldMethod;
+              
+              // Remove commas from args
+              $args = array_filter( $expFieldMethod->args, fn( $arg ) => $arg !== ',' );
+              $args = array_values( $args );
+              
+              [ $condition, $result ] = $args;
+              return new ExpCaseWhen( $condition, $result );
             });
-
-            [ $conditionWhen, $_, $resultWhen ] = $when->args;
-          } else [ $conditionWhen, $_, $resultWhen ] = [ null, null, null ];
+          }
           
+          $else = null;
           if( empty( $elseTokens ) === false ){
-            [ $else ] = ParserUtils::mapperStatic( $elseTokens, function( ExpFieldMethod $expFieldMethod ) use( $parser ) {
+            [ $elseMethod ] = ParserUtils::mapperStatic( $elseTokens, function( ExpFieldMethod $expFieldMethod ) use( $parser ) {
               $expFieldMethod->args = ParserUtils::mapperStatic( ParserUtils::parserValue( $parser, $expFieldMethod->args ), fn( ExpToken $expToken ) => $expToken->value );
               return $expFieldMethod;
             });
 
-            [ $resultElse ] = $else->args;
-          } else [ $resultElse ] = [ null ];
+            [ $resultElse ] = $elseMethod->args;
+            $else = [ new ExpCaseElse( $resultElse ) ];
+          }
 
           array_splice( $tokens, $extractsIndexOf, sizeof( $extractsClosure ), [ 
-            new ExpFieldCaseMethod( descriptor: $closure, type: MethodType::Modify,
-              whens: new ExpCaseWhen( $conditionWhen, $resultWhen ),
-              else: new ExpCaseElse( $resultElse )
-            )
+            new ExpFieldCaseMethod( descriptor: $closure, type: MethodType::Modify, whens: $whens, else: $else )
           ]);
         }
       }

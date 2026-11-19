@@ -10,8 +10,8 @@ extends AbstractExpTypeFieldMethod
   public function __construct(
     public string $descriptor,
     public MethodType $type,
-    public ExpCaseWhen|null $whens = null,
-    public ExpCaseElse|null $else = null
+    public array $whens = [],
+    public array $else = []
   ){
     parent::__construct( $type );
   }  
