@@ -84,7 +84,7 @@ extends ParserUtils
   private function resolveHierarchyToExpColumnField(
     array $tokens = []
   ): ExpField {
-    return $this->resolveField( $tokens );
+    return ExpressionSelectUtils::createASTExpField( $tokens, $this->parser, $this->repository );
   } 
   
   private function descriptor(
@@ -224,13 +224,13 @@ extends ParserUtils
     bool $depth = false
   ): ExpSelectColumn {
     if( $expr instanceof ExpField ){
-      $methods = $depth === false 
+      $closures = $depth === false 
         ? $this->filterMethodsArr($expr) 
         : [];
 
       $column = "{$expr->table}.{$expr->column}";
 
-      foreach( $methods as $method ){
+      foreach( $closures as $method ){
         if( $method instanceof ExpFieldMethod ){
           $column = $this->getExprFieldMethods(
             $column, $method
@@ -243,7 +243,7 @@ extends ParserUtils
       );      
     }
     
-    return $this->resolverExpSelectColumn( "", "", "" );
+    return $this->resolverExpSelectColumn( "", "", [] );
   }
   
   private function isMethodSubQuery(
