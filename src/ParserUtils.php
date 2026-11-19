@@ -4,9 +4,12 @@ namespace Websyspro\ArrowToSql;
 
 use Websyspro\ArrowToSql\Enums\MethodList;
 use Websyspro\ArrowToSql\Enums\MethodType;
+use Websyspro\ArrowToSql\Expressions\AbstractExpTypeFieldMethod;
 use Websyspro\ArrowToSql\Expressions\ExpField;
+use Websyspro\ArrowToSql\Expressions\ExpFieldCaseMethod;
 use Websyspro\ArrowToSql\Expressions\ExpFieldMethod;
 use Websyspro\ArrowToSql\Expressions\ExpMethod;
+use Websyspro\ArrowToSql\Expressions\ExpToken;
 use Websyspro\Entity\Decorators\EntityList;
 use function array_slice;
 use function in_array;
@@ -140,6 +143,158 @@ class ParserUtils
 
     return -1;
   } 
+
+  public static function parserVariableToStatic(
+    array $tokens = [],
+    array $statics = []
+  ): array {
+    for( $i=0; $i < count($tokens); $i++ ){
+      if( $tokens[$i] instanceof ExpToken ){
+        $value = $tokens[$i]->value;
+
+        if( is_array( $statics )){
+          $staticValue = $statics[
+            trim( $value, "$\"" )
+          ] ?? null;
+        } else
+        if( is_object( $statics )){
+          $staticValue = $statics->{
+            trim( $value, "$\"" )
+          } ?? null;
+        }
+
+        if( $staticValue !== null ){
+          if( is_string( $staticValue )){
+            $tokens[$i]->value = $staticValue;
+          } else
+          if( is_numeric( $staticValue )){
+              $tokens[$i]->value = (string)$staticValue;
+          } else
+          if( is_object( $staticValue )){
+            $statics = $staticValue;
+            array_splice( $tokens, $i, 2 ); $i--;
+          } else
+          if( is_array( $staticValue )){
+            $statics = $staticValue;
+            $tokensOuts = array_splice( $tokens, $i, 4 );
+            array_splice( $tokens, $i, 0, [ $tokensOuts[ 2 ]]); $i--;
+          }
+        }
+      }   
+    }
+
+    return $tokens;
+  } 
+
+  private static function isWithProperty(
+    array $values
+  ): bool {
+    if( sizeof( $values ) < 5 ){
+      return false;
+    }
+
+    if( sizeof( $values ) === 5 ){
+      return $values[0]->key === T_STRING
+          && $values[1]->key === T_DOUBLE_COLON
+          && $values[2]->key === T_STRING
+          && $values[3]->key === T_OBJECT_OPERATOR
+          && $values[4]->key === T_STRING;
+    }
+
+    return false;
+  }  
+
+  private static function isNotProperty(
+    array $values
+  ): bool {
+    if( sizeof( $values ) < 3 ){
+      return false;
+    }
+
+    if( sizeof( $values ) === 3 ){
+      return $values[0]->key === T_STRING
+          && $values[1]->key === T_DOUBLE_COLON
+          && $values[2]->key === T_STRING;
+    }
+
+    return false;
+  }
+  
+  public static function changeEnumValue(
+    string $enum,
+    string $case,
+    string|null $property = null,
+    array $uses = []
+  ): array {
+    $use = $uses[$enum] ?? null;
+
+    if( $use ){
+      $constantEnum = "{$use}::{$case}";
+      if( defined( $constantEnum )){
+        $constantEnum = constant( $constantEnum );
+        return [
+          $property !== null
+            ? new ExpToken(
+                T_STRING, $property === "name" 
+                  ? $constantEnum->name 
+                  : $constantEnum->value, 
+                      TokenName::get( T_STRING )
+              )
+            : new ExpToken(
+                T_STRING, 
+                $constantEnum->value,
+                TokenName::get( T_STRING )
+              )
+        ];
+      }
+    } 
+
+    return [];
+  }  
+  
+  public static function parserEnumToStatic(
+    array $values = [],
+    array $uses = []
+  ): array {
+    for($i=0; $i<sizeof($values); $i++){
+      $withProperty = ParserUtils::sliceStatic( $values, $i, 5 );
+      $notProperty = ParserUtils::sliceStatic( $values, $i, 3 );
+
+      $isWithProperty = ParserUtils::isWithProperty( $withProperty );
+      $isNotProperty = ParserUtils::isNotProperty( $notProperty );
+
+      if( $isWithProperty ){
+        $result = ParserUtils::changeEnumValue(
+          $withProperty[0]->value, $withProperty[2]->value, $withProperty[4]->value, $uses
+        );
+
+        if( !empty( $result ) ){
+          $values[$i] = $result[0];
+          array_splice( $values, $i + 1, 4 );
+        }
+      } else if( $isNotProperty ){
+        $result = ParserUtils::changeEnumValue(
+          $withProperty[0]->value, $withProperty[2]->value, null, $uses
+        );
+
+        if( !empty( $result ) ){
+          $values[$i] = $result[0];
+          array_splice( $values, $i + 1, 2 );
+        }
+      }      
+    };
+
+    return $values;
+  }  
+
+  public static function parserValue(
+    Parser $parser,
+    array $tokens = []
+  ): array {
+    $tokens = ParserUtils::parserVariableToStatic( $tokens, $parser->staticVariables );
+    $tokens = ParserUtils::parserEnumToStatic( $tokens, $parser->uses );
+    return $tokens;
+  }  
   
   public static function extractTokensFromStr(
     string $value,
@@ -251,7 +406,7 @@ class ParserUtils
     array $methodList = [ MethodType::Modify, MethodType::Alias ]
   ): array {
     return $this->filter(
-      $expr->closures, fn( ExpFieldMethod $expr ) => (
+      $expr->closures, fn( AbstractExpTypeFieldMethod $expr ) => (
         in_array( $expr->type, $methodList )
       )
     );    

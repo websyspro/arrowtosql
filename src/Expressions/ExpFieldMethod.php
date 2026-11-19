@@ -5,13 +5,13 @@ namespace Websyspro\ArrowToSql\Expressions;
 use Websyspro\ArrowToSql\Enums\MethodType;
 
 class ExpFieldMethod
-extends AbstractExpType
+extends AbstractExpTypeFieldMethod
 {
   public function __construct(
     public string $descriptor,
     public MethodType $type,
     public array $args = []
   ){
-    parent::__construct();
+    parent::__construct( $type );
   }  
 }

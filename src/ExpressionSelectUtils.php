@@ -2,19 +2,153 @@
 
 namespace Websyspro\ArrowToSql;
 
+use Websyspro\ArrowToSql\Enums\MethodList;
+use Websyspro\ArrowToSql\Enums\MethodType;
+use Websyspro\ArrowToSql\Expressions\ExpCaseElse;
+use Websyspro\ArrowToSql\Expressions\ExpCaseWhen;
 use Websyspro\ArrowToSql\Expressions\ExpField;
+use Websyspro\ArrowToSql\Expressions\ExpFieldCaseMethod;
 use Websyspro\ArrowToSql\Expressions\ExpFieldMethod;
-use Websyspro\Entity\Decorators\EntityList;
+use Websyspro\ArrowToSql\Expressions\ExpToken;
+use function in_array;
+use function sizeof;
 
 class ExpressionSelectUtils
 {
-  public static function createASTExpField(
+  public static function extractEntity(
+    array $tokens
+  ): string {
+    [ $token ] = ParserUtils::sliceStatic( $tokens, 0, 1 );
+    return $token->value;
+  }
+
+  public static function extractColumn(
+    array $tokens
+  ): string {
+    [ $token ] = ParserUtils::sliceStatic( $tokens, 2, 1 );
+    return $token->value;
+  }
+
+  public static function fieldMethodType(
+    string $closure,
+    array $closures = []
+  ): MethodType {
+    $closures = [
+      MethodList::StartsWith->value,
+      MethodList::EndsWith->value,
+      MethodList::Contains->value,
+      MethodList::Between->value,
+      MethodList::NotIn->value,
+      MethodList::In->value,
+      MethodList::Equals->value
+    ];
+
+    if( in_array( $closure, $closures )){
+      return MethodType::Compare;
+    }
+
+    return $closure === MethodList::As->value ? MethodType::Alias : MethodType::Modify;
+  } 
+
+  public static function hasClosureByName(
+    array $tokens,
+    string $descriptor
+  ): bool {
+    $closureExists = ParserUtils::where( 
+      $tokens, fn( ExpFieldMethod $expFieldMethod ) => (
+        $expFieldMethod->descriptor === $descriptor
+      )
+    );
+
+    return empty( $closureExists ) === false;
+  }
+
+  public static function extractSpecializedASTExpFieldClosure(
+    array $tokens,
+    array $descriptors
+  ): array {
+    $closures = ParserUtils::where( 
+      $tokens, fn( ExpFieldMethod $expFieldMethod ) => (
+        in_array( $expFieldMethod->descriptor, $descriptors )
+      )
+    );
+
+    return $closures;
+  }  
+
+  public static function indexOf(
+    array $tokens,
+    string $descriptors    
+  ): int {
+    foreach( $tokens as $cursor => $token ){
+      if( $token instanceof ExpFieldMethod ){
+        if( $token->descriptor === $descriptors ){
+          return $cursor;
+        }
+      }
+    }
+
+    return -1;    
+  }
+  
+  public static function createSpecializedASTExpFieldClosures(
     array $tokens,
     Parser $parser,
-    Repository $repository
-  ): ExpField {
-    $entityStructureColumn = $tokens[2]->value;
-    $columnMethods = ParserUtils::mapperStatic(
+    array $closuresListTypes = []
+  ): array {
+    $closuresListTypes = [
+      MethodList::Case->value => [ 
+        MethodList::Case->value,
+        MethodList::When->value, 
+        MethodList::Else->value
+      ]
+    ];
+
+    foreach( $closuresListTypes as $closure => $closureChilds ){
+      if( ExpressionSelectUtils::hasClosureByName( $tokens, $closure )){
+        $extractsClosure = ExpressionSelectUtils::extractSpecializedASTExpFieldClosure( $tokens, $closureChilds );
+        $extractsIndexOf = ExpressionSelectUtils::indexOf( $tokens, $closure );
+
+        if( $closure === MethodList::Case->value ){
+          $whenTokens = ParserUtils::where( $extractsClosure, fn( ExpFieldMethod $expFieldMethod ) => $expFieldMethod->descriptor === MethodList::When->value );
+          $elseTokens = ParserUtils::where( $extractsClosure, fn( ExpFieldMethod $expFieldMethod ) => $expFieldMethod->descriptor === MethodList::Else->value );
+
+          if( empty( $whenTokens ) === false ){
+            [ $when ] = ParserUtils::mapperStatic( $whenTokens, function( ExpFieldMethod $expFieldMethod ) use( $parser ) {
+              $expFieldMethod->args = ParserUtils::mapperStatic( ParserUtils::parserValue( $parser, $expFieldMethod->args ), fn( ExpToken $expToken ) => $expToken->value );
+              return $expFieldMethod;
+            });
+
+            [ $conditionWhen, $_, $resultWhen ] = $when->args;
+          } else [ $conditionWhen, $_, $resultWhen ] = [ null, null, null ];
+          
+          if( empty( $elseTokens ) === false ){
+            [ $else ] = ParserUtils::mapperStatic( $elseTokens, function( ExpFieldMethod $expFieldMethod ) use( $parser ) {
+              $expFieldMethod->args = ParserUtils::mapperStatic( ParserUtils::parserValue( $parser, $expFieldMethod->args ), fn( ExpToken $expToken ) => $expToken->value );
+              return $expFieldMethod;
+            });
+
+            [ $resultElse ] = $else->args;
+          } else [ $resultElse ] = [ null ];
+
+          array_splice( $tokens, $extractsIndexOf, sizeof( $extractsClosure ), [ 
+            new ExpFieldCaseMethod( descriptor: $closure, type: MethodType::Modify,
+              whens: new ExpCaseWhen( $conditionWhen, $resultWhen ),
+              else: new ExpCaseElse( $resultElse )
+            )
+          ]);
+        }
+      }
+    }
+
+    return $tokens;
+  }
+
+  public static function extractASTExpFieldClosures(
+    array $tokens,
+    Parser $parser
+  ): array {
+    $closures = ParserUtils::mapperStatic(
       ParserUtils::groupByTypesStatic(
         [ T_OBJECT_OPERATOR ], ParserUtils::sliceStatic(
           $tokens, 4
@@ -22,23 +156,27 @@ class ExpressionSelectUtils
       ), fn( array $closure ) => (
         new ExpFieldMethod(
           $closure[0]->value, 
-          ExpressionWhereUtils::fieldMethodType( $closure[0]->value ),
+          ExpressionSelectUtils::fieldMethodType( $closure[0]->value ),
           ParserUtils::sliceStatic( $closure, 2, -1 )
         )
       )
     );
 
+    return ExpressionSelectUtils::createSpecializedASTExpFieldClosures( $closures, $parser );
+  }
+
+  public static function createASTExpField(
+    array $tokens,
+    Parser $parser,
+    Repository $repository
+  ): ExpField {
+    $closures = ExpressionSelectUtils::extractASTExpFieldClosures( $tokens, $parser );
     $entityStructure = $repository->getEntityStructureByString(
-      $parser->scopes[ $tokens[0]->value ]
+      $parser->scopes[ ExpressionSelectUtils::extractEntity( $tokens ) ]
     );
 
-    $columnType = $entityStructure->getColumnType( $entityStructureColumn );
-    $columnName = ( $columnType === EntityList::class ) 
-      ? $entityStructureColumn : $entityStructure->getColumnName( $entityStructureColumn );
-
-    return new ExpField(
-      $entityStructure->getEntityAlias(),
-      $columnName, $columnType, $columnMethods
-    );
-  }  
+    $columnType = $entityStructure->getColumnType( ExpressionSelectUtils::extractColumn( $tokens ));
+    $columnName = ExpressionSelectUtils::extractColumn( $tokens );
+    return new ExpField( $entityStructure->getEntityAlias(), $columnName, $columnType, $closures );
+  }   
 }

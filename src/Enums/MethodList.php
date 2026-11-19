@@ -99,7 +99,9 @@ enum MethodList:string
   // CASE WHEN - Condicional complexo (builder especial)
   // Exemplo: $p->case()->when($p->Status == 1, "Ativo")->else("Inativo")
   // SQL: CASE WHEN Status = 1 THEN 'Ativo' ELSE 'Inativo' END
-  case CaseWhen = "case";
+  case Case = "case";
+  case When = "when";
+  case Else = "else";
   
   // DISTINCT - Valores únicos/distintos
   // Exemplo: $p->distinct($p->Status)
