@@ -238,14 +238,9 @@ extends ParserUtils
   }  
 
   private function createASTExpLogical(
-    array $childs = []
+    array $tokens = []
   ): ExpLogical {
-    return new ExpLogical(
-      match( $childs[0]->key ){
-        T_LOGICAL_AND, T_BOOLEAN_AND => LogicalType::And->value,
-        T_LOGICAL_OR, T_BOOLEAN_OR => LogicalType::Or->value
-      }
-    );
+    return ExpressionWhereUtils::createASTExpLogical( $tokens );
   }
 
   private function createASTExpCompare(
@@ -258,7 +253,7 @@ extends ParserUtils
       ? ExpressionWhereUtils::createASTExpField( $astCompareLeft, $this->parser, $this->repository )
       : (
         sizeof( $astCompareLeft ) === 1 && $astCompareLeft[0]->key === T_VARIABLE
-          ? $this->resolveValue( $astCompareLeft )
+          ? ExpressionWhereUtils::createASTExpValue( $astCompareLeft, $astCompareLeft->columnType, $this->parser )
           : (
             is_array( $this->resolveHierarchyColumn( $astCompareLeft )) && sizeof($this->resolveHierarchyColumn( $astCompareLeft )) === 1
               ? $this->resolveHierarchyColumn( $astCompareLeft )[0]

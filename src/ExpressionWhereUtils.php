@@ -2,11 +2,13 @@
 
 namespace Websyspro\ArrowToSql;
 
+use Websyspro\ArrowToSql\Enums\LogicalType;
 use Websyspro\ArrowToSql\Enums\MethodList;
 use Websyspro\ArrowToSql\Enums\MethodType;
 use Websyspro\ArrowToSql\Expressions\ExpEqual;
 use Websyspro\ArrowToSql\Expressions\ExpField;
 use Websyspro\ArrowToSql\Expressions\ExpFieldMethod;
+use Websyspro\ArrowToSql\Expressions\ExpLogical;
 use Websyspro\ArrowToSql\Expressions\ExpToken;
 use Websyspro\ArrowToSql\Expressions\ExpValue;
 use Websyspro\Entity\Decorators\EntityList;
@@ -314,5 +316,16 @@ class ExpressionWhereUtils
     Parser $parser,
   ): ExpValue {
     return new ExpValue( value: ExpressionWhereUtils::parserParams( $parser, $tokens, $columnType ));
+  }
+  
+  public static function createASTExpLogical(
+    array $tokens = []
+  ): ExpLogical {
+    return new ExpLogical(
+      match( $tokens[0]->key ){
+        T_LOGICAL_AND, T_BOOLEAN_AND => LogicalType::And->value,
+        T_LOGICAL_OR, T_BOOLEAN_OR => LogicalType::Or->value
+      }
+    );
   }  
 }
