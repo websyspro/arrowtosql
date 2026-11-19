@@ -3,7 +3,7 @@
 namespace Websyspro\ArrowToSql\Expressions;
 
 class ExpSelectCount 
-extends AbstractExpType
+extends AbstractExpTypeSelect
 {  
   public function __construct(
     public string $table,

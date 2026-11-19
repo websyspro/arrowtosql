@@ -7,8 +7,6 @@ use Websyspro\ArrowToSql\Enums\MethodType;
 use Websyspro\ArrowToSql\Expressions\ExpField;
 use Websyspro\ArrowToSql\Expressions\ExpFieldMethod;
 use Websyspro\ArrowToSql\Expressions\ExpMethod;
-use Websyspro\Connection\Database;
-use Websyspro\Connection\Enums\DriverType;
 use Websyspro\Entity\Decorators\EntityList;
 use function array_slice;
 use function in_array;
@@ -442,7 +440,6 @@ class ParserUtils
 
     return new ExpField(
       $entityStructure->getEntityAlias(),
-      $columnName,
       $columnName,
       $columnType, 
       $columnMethods

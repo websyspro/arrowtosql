@@ -3,12 +3,12 @@
 namespace Websyspro\ArrowToSql\Expressions;
 
 class ExpSelectColumn 
-extends AbstractExpType
+extends AbstractExpTypeSelect
 {  
   public function __construct(
     public string $table,
     public string $column,
-    public string $columnAs,
+    public array $closures = []
   ){
     parent::__construct();
   }

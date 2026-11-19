@@ -4,13 +4,17 @@ namespace Websyspro\ArrowToSql;
 
 use Websyspro\ArrowToSql\Enums\MethodList;
 use Websyspro\ArrowToSql\Enums\MethodType;
+use Websyspro\ArrowToSql\Expressions\AbstractExpTypeSelect;
 use Websyspro\ArrowToSql\Expressions\ExpField;
 use Websyspro\ArrowToSql\Expressions\ExpFieldMethod;
 use Websyspro\ArrowToSql\Expressions\ExpGroup;
 use Websyspro\ArrowToSql\Expressions\ExpMethod;
 use Websyspro\ArrowToSql\Expressions\ExpOperator;
+use Websyspro\ArrowToSql\Expressions\ExpSelectAvg;
 use Websyspro\ArrowToSql\Expressions\ExpSelectColumn;
 use Websyspro\ArrowToSql\Expressions\ExpSelectCount;
+use Websyspro\ArrowToSql\Expressions\ExpSelectMax;
+use Websyspro\ArrowToSql\Expressions\ExpSelectMin;
 use Websyspro\ArrowToSql\Expressions\ExpSelectSubQuery;
 use Websyspro\ArrowToSql\Expressions\ExpSelectSum;
 use Websyspro\ArrowToSql\Expressions\ExpSeparator;
@@ -191,10 +195,10 @@ extends ParserUtils
   private function resolverExpSelectColumn(
     string $table,
     string $column,
-    string $columnAs
+    array $closures = []
   ): ExpSelectColumn {
     return new ExpSelectColumn(
-      $table, $column, $columnAs
+      $table, $column, $closures
     );
   }
 
@@ -235,9 +239,7 @@ extends ParserUtils
       }
 
       return $this->resolverExpSelectColumn(
-        $expr->table, 
-        $expr->column, 
-        $this->resolveColumnAs( $expr ) 
+        $expr->table, $expr->column, $expr->closures,
       );      
     }
     
@@ -250,22 +252,6 @@ extends ParserUtils
     return $expr->columnType === EntityList::class && !empty( $expr->closures );
   }
 
-  private function extractTokensFromSubQuery(
-    ExpField $expr
-  ): array {
-    $methods = $this->filterMethodsArr(
-      $expr, [ MethodType::Modify ] 
-    );
-
-    if( empty( $methods )){
-      return [];
-    }
-
-    [ $method ] = $methods;
-    return $method instanceof ExpFieldMethod
-      ? $method->args : [];
-  }
-
   private function resolveSubQuery(
     ExpField $expr
   ): ExpSelectSubQuery|null {
@@ -275,11 +261,21 @@ extends ParserUtils
         $this->parser->uses, $this->parser->scopes, $this->parser->getClosure()
       );
 
-      $tokens = $this->extractTokensFromSubQuery( $expr );
+      [ $scopeWheres ] = ParserUtils::where(
+        $expr->closures, fn( ExpFieldMethod $expFieldMethod ) => (
+          $expFieldMethod->name === MethodList::Where->value
+        )
+      );
+
+      [ $scopeSelect ] = ParserUtils::where(
+        $expr->closures, fn( ExpFieldMethod $expFieldMethod ) => (
+          $expFieldMethod->name === MethodList::Select->value
+        )
+      );
 
       $repositoryInRuntime
-        ->setWheres( ParserUtils::extractTokensFromStr( "where", $tokens ))
-        ->setSelect( ParserUtils::extractTokensFromStr( "select", $tokens ));
+        ->setWheres( $scopeWheres->args )
+        ->setSelect( $scopeSelect->args );
 
       return new ExpSelectSubQuery(
         $expr->table,
@@ -302,24 +298,24 @@ extends ParserUtils
     } else return $this->resolveExprField( $expr, $depth );
   }
   
-  private function resolveColumnFragment( 
-    string|array $fragment
-  ): string {
-    if( is_array( $fragment )){
-      return $this->resolveColumnFragment( $fragment[0] ?? "" );
-    }
-
-    return $fragment;
-  } 
-  
   private function resolveExprColumnMethod(
     ExpMethod $expr
-  ): ExpSelectSum|ExpSelectCount|null {
-    return match( $expr->descriptor ){
-      MethodList::Sum->name => new ExpSelectSum( $expr->table, $expr->descriptor, $this->resolveExprColumns( $expr->childs )),
-      MethodList::Count->name => new ExpSelectCount( $expr->table, $expr->descriptor, $this->resolveExprColumns( $expr->childs )),
-        default => null
-    };
+  ): AbstractExpTypeSelect|null {
+    if( $expr->descriptor === MethodList::Sum->name ){
+      return new ExpSelectSum( $expr->table, $expr->descriptor, $this->resolveExprColumns( $expr->childs ));
+    } else
+    if( $expr->descriptor === MethodList::Avg->name ){
+      return new ExpSelectAvg( $expr->table, $expr->descriptor, $this->resolveExprColumns( $expr->childs ));
+    } else
+    if( $expr->descriptor === MethodList::Count->name ){
+      return new ExpSelectCount( $expr->table, $expr->descriptor, $this->resolveExprColumns( $expr->childs ));
+    } else 
+    if( $expr->descriptor === MethodList::Max->name ){
+      return new ExpSelectMax( $expr->table, $expr->descriptor, $this->resolveExprColumns( $expr->childs ));
+    } else 
+    if( $expr->descriptor === MethodList::Min->name ){
+      return new ExpSelectMin( $expr->table, $expr->descriptor, $this->resolveExprColumns( $expr->childs ));
+    } else return null;
   } 
   
   private function resolveExprColumnSeparator(

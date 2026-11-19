@@ -6,7 +6,7 @@ use Websyspro\ArrowToSql\Repository;
 use Websyspro\ArrowToSql\RepositoryInRuntime;
 
 class ExpSelectSubQuery 
-extends AbstractExpType
+extends AbstractExpTypeSelect
 {  
   public function __construct(
     public string $table,

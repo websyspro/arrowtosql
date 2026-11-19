@@ -243,13 +243,12 @@ extends ParserUtils
   private function resolveHierarchyToExpSubQuery(
    array $tokens = []
   ): ExpSubQuery {
-    $tokens = ExpressionWhereUtils::extractEntityAndWhere( $tokens );
-    
+    $scopeName = ExpressionWhereUtils::extractScopeName( $tokens );  
+    $scopeWheres = ExpressionWhereUtils::extractScopeWhere( $tokens );
 
     return new ExpSubQuery(
-      "", "", [], 
-      ExpressionWhereUtils::createRepositoryInRunTime( 
-        $tokens, $this->parser->uses, $this->parser->scopes, $this->parser->getClosure()
+      $scopeName, ExpressionWhereUtils::createRepositoryInRunTime( 
+        $scopeWheres, $this->parser->uses, $this->parser->scopes, $this->parser->getClosure()
       )
     );
   }  

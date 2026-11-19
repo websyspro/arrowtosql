@@ -8,7 +8,18 @@ use Websyspro\ArrowToSql\Expressions\ExpToken;
 
 class ExpressionWhereUtils
 {
-  public static function extractEntityAndWhere(
+  public static function extractScopeName(
+    array $tokens
+  ): string|null {
+    [ $expToken ] = ParserUtils::sliceStatic( $tokens, 4, 1 );
+    if( $expToken instanceof ExpToken ){
+      return $expToken->value;
+    }
+
+    return null;
+  }
+
+  public static function extractScopeWhere(
     array $tokens
   ): array {
     [ $scopes, $scopeWheres ] = [
