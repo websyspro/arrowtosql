@@ -202,25 +202,9 @@ extends ParserUtils
     return null;    
   }
 
-  private function resolveValue(
-    array $childs = []
-  ): ExpValue {
-    return new ExpValue( $childs );
-  }
 
-  private function resolveEqual(
-    array $childs = []
-  ): ExpEqual {
-    return new ExpEqual(
-      match( $childs[0]->value ){
-        "===", "==" => "=",
-        "!==", "!=" => "!=",
-          default => $childs[0]->value
-      }
-    );
-  }
 
-  private function resolveHierarchyToExpDenying(
+  private function createASTExpDenying(
     array $childs = [],
   ): ExpDenying {
     return new ExpDenying(
@@ -230,7 +214,7 @@ extends ParserUtils
     );
   }  
 
-  private function resolveHierarchyToExpGroup(
+  private function createASTExpGroup(
     array $childs = []
   ): ExpGroup {
     return new ExpGroup(
@@ -240,7 +224,7 @@ extends ParserUtils
     );
   }
 
-  private function resolveHierarchyToExpSubQuery(
+  private function createASTExpSubQuery(
    array $tokens = []
   ): ExpSubQuery {
     $scopeName = ExpressionWhereUtils::extractScopeName( $tokens );  
@@ -253,7 +237,7 @@ extends ParserUtils
     );
   }  
 
-  private function resolveHierarchyToExpLogical(
+  private function createASTExpLogical(
     array $childs = []
   ): ExpLogical {
     return new ExpLogical(
@@ -264,46 +248,37 @@ extends ParserUtils
     );
   }
 
-  private function resolveHierarchyToExpCompare(
-    array $childs = []
+  private function createASTExpCompare(
+    array $tokens = []
   ): ExpCompare {
-    [ $childA, $equals, $childB 
-    ] = $this->groupByTypes([ 
-      T_IS_EQUAL, T_IS_NOT_EQUAL, T_IS_IDENTICAL, T_IS_NOT_IDENTICAL,
-      T_IS_SMALLER_OR_EQUAL, T_IS_GREATER_OR_EQUAL,
-      T_LESS_THAN, T_GREATER_THAN, T_EQUAL
-    ], $childs, true );
+    [ $astCompareLeft, $astCompareEqual, $astCompareRight 
+    ] = ExpressionWhereUtils::groupByTypesFromCompare( $tokens );
 
-    $childA = count($childA) === 1 && $this->isField( $childA )
-      ? $this->resolveField( $childA )
+    $astCompareLeft = sizeof( $astCompareLeft ) === 1 && ParserUtils::isField( $astCompareLeft, $this->repository->getEntityStructure()->columns->items )
+      ? ExpressionWhereUtils::createASTExpField( $astCompareLeft, $this->parser, $this->repository )
       : (
-        count($childA) === 1 && $childA[0]->key === T_VARIABLE
-          ? $this->resolveValue( $childA )
+        sizeof( $astCompareLeft ) === 1 && $astCompareLeft[0]->key === T_VARIABLE
+          ? $this->resolveValue( $astCompareLeft )
           : (
-            is_array($this->resolveHierarchyColumn( $childA )) && count($this->resolveHierarchyColumn( $childA )) === 1
-              ? $this->resolveHierarchyColumn( $childA )[0]
-              : $this->resolveHierarchyColumn( $childA )
+            is_array( $this->resolveHierarchyColumn( $astCompareLeft )) && sizeof($this->resolveHierarchyColumn( $astCompareLeft )) === 1
+              ? $this->resolveHierarchyColumn( $astCompareLeft )[0]
+              : $this->resolveHierarchyColumn( $astCompareLeft )
           )
       );
 
-    $childB = $this->isField( $childB )
-      ? $this->resolveField( $childB )
-      : $this->resolveValue( $childB );
+    $astCompareRight = ParserUtils::isField( $astCompareRight, $this->repository->getEntityStructure()->columns->items )
+      ? ExpressionWhereUtils::createASTExpField( $astCompareRight, $this->parser, $this->repository ) 
+      : ExpressionWhereUtils::createASTExpValue( $astCompareRight, $astCompareLeft->columnType, $this->parser );
 
-    $equals = $this->resolveEqual( $equals );
-
-    if( $childA instanceof ExpValue ){
-      return new ExpCompare(
-        [ $childB, $equals->invert(), $childA ]
-      );
+    $astCompareExpEqual = ExpressionWhereUtils::createASTExpEqual( $astCompareEqual );
+    if( $astCompareLeft instanceof ExpValue ){
+      return new ExpCompare([ $astCompareRight, $astCompareExpEqual->invert(), $astCompareLeft ]);
     }
 
-    return new ExpCompare(
-      [ $childA, $equals, $childB ]
-    );
+    return new ExpCompare([ $astCompareLeft, $astCompareExpEqual, $astCompareRight ]);
   }
 
-  private function resolveHierarchyToExpUnary(
+  private function createASTExpUnary(
     array $childs = []
   ): ExpUnary {
     return new ExpUnary([
@@ -317,12 +292,12 @@ extends ParserUtils
     $tokens = $this->mapper(
       $this->groupByTypesLogical( $tokens ), fn( array $childs ) =>
         match( $this->hierackyType( $childs )){
-          ExpDenying::class => $this->resolveHierarchyToExpDenying( $childs ),
-          ExpGroup::class => $this->resolveHierarchyToExpGroup( $childs ),
-          ExpSubQuery::class => $this->resolveHierarchyToExpSubQuery( $childs ),
-          ExpLogical::class => $this->resolveHierarchyToExpLogical( $childs ),
-          ExpCompare::class => $this->resolveHierarchyToExpCompare( $childs ),
-          ExpUnary::class => $this->resolveHierarchyToExpUnary( $childs ),
+          ExpDenying::class => $this->createASTExpDenying( $childs ),
+          ExpGroup::class => $this->createASTExpGroup( $childs ),
+          ExpSubQuery::class => $this->createASTExpSubQuery( $childs ),
+          ExpLogical::class => $this->createASTExpLogical( $childs ),
+          ExpCompare::class => $this->createASTExpCompare( $childs ),
+          ExpUnary::class => $this->createASTExpUnary( $childs ),
             default => $childs
         }
     );
@@ -540,7 +515,8 @@ extends ParserUtils
                   $tokens[ $tokenIndex ] = new ExpBetween(
                     [
                       new ExpField( $child->table, $child->column, $child->type, $modifys ),
-                      new ExpValue( $expTokenBetweenFrom ), new ExpValue( $expTokenBetweenTo )
+                      ExpressionWhereUtils::createASTExpValue( $expTokenBetweenFrom, $child->type, $this->parser ), 
+                      ExpressionWhereUtils::createASTExpValue( $expTokenBetweenTo, $child->type, $this->parser )
                     ]
                   );
                 }
@@ -566,7 +542,7 @@ extends ParserUtils
 
                     $exprLikes[] = new ExpLike([ 
                       new ExpField( $child->table, $child->column, $child->type, $modifys ),
-                      new ExpValue( $exprValues )
+                      ExpressionWhereUtils::createASTExpValue( $exprValues, "", $this->parser )
                     ]);
                   }
 
@@ -577,7 +553,11 @@ extends ParserUtils
                 if( $this->resolveIsIn( $compare->name )){
                   $tokens[ $tokenIndex ] = new ExpIn([ 
                     new ExpField( $child->table, $child->column, $child->type, $modifys ), 
-                    new ExpValue( $this->resolveEntryParenteses( $compares[ $comporeIndex ]->args ))
+                    ExpressionWhereUtils::createASTExpValue( 
+                      $this->resolveEntryParenteses( 
+                        $compares[ $comporeIndex ]->args
+                      ), "", $this->parser
+                    )
                   ]);
                 }
                 
@@ -585,7 +565,11 @@ extends ParserUtils
                 if( $this->resolveIsNotIn( $compare->name )){
                   $tokens[ $tokenIndex ] = new ExpNotIn([ 
                     new ExpField( $child->table, $child->column, $child->type, $modifys ), 
-                    new ExpValue( $this->resolveEntryParenteses( $compares[ $comporeIndex ]->args ))
+                    ExpressionWhereUtils::createASTExpValue( 
+                      $this->resolveEntryParenteses( 
+                        $compares[ $comporeIndex ]->args
+                      ), $child->type, $this->parser
+                    )
                   ]);
                 }
 
@@ -593,8 +577,9 @@ extends ParserUtils
                 if( $this->resolveIsEquals( $compare->name )){
                   $tokens[ $tokenIndex ] = new ExpCompare([
                     new ExpField( $child->table, $child->column, $child->type, $modifys ),
-                    new ExpEqual( "=" ),
-                    new ExpValue( $compares[ $comporeIndex ]->args )
+                    new ExpEqual( "=" ), ExpressionWhereUtils::createASTExpValue( 
+                      $compares[ $comporeIndex ]->args, $child->type, $this->parser
+                    )
                   ]);
                 }
               }
@@ -697,10 +682,10 @@ extends ParserUtils
           /* resolve Improvements to In */
           if( $this->resolveIsExpIn( $exprValue->childs )){
             $tokens[$x] = new ExpIn([
-              $exprField, new ExpValue(
+              $exprField, ExpressionWhereUtils::createASTExpValue(
                 $this->resolveEntryParenteses(
                   $this->slice( $exprValue->childs, 1, -1 )
-                )
+                ), $exprField->columnType, $this->parser
               )
             ]);
           }
@@ -708,8 +693,8 @@ extends ParserUtils
           /* resolve Improvements to Between 'find%' */
           if( $this->resolveIsLikeFromWildcard( $exprValue->childs )){
             $tokens[$x] = $exprEqual->value === "="
-              ? new ExpLike([ $exprField, new ExpValue( $exprValue->childs )])
-              : new ExpNotLike([ $exprField, new ExpValue( $exprValue->childs )]);
+              ? new ExpLike([ $exprField, ExpressionWhereUtils::createASTExpValue( $exprValue->childs, $exprField->columnType, $this->parser )])
+              : new ExpNotLike([ $exprField, ExpressionWhereUtils::createASTExpValue( $exprValue->childs, $exprField->columnType, $this->parser )]);
           }
 
           /* resolve Improvements IsNull or Null */
@@ -745,9 +730,9 @@ extends ParserUtils
         
         if( $exprField->type === basename( ColumnFlag::class )){
           $tokens[ $x ] = new ExpCompare([ 
-            $exprField, 
-              new ExpEqual( "=" ),
-                new ExpValue([ $this->resolveEqualTrue() ])
+            $exprField, new ExpEqual( "=" ), ExpressionWhereUtils::createASTExpValue(
+              [ $this->resolveEqualTrue() ], $exprField->columnType, $this->parser
+            )
           ]);
         } else if( $exprField->type !== basename( ColumnFlag::class )){
           $tokens[ $x ] = new ExpIsNull([
@@ -799,12 +784,6 @@ extends ParserUtils
     $this->parser->tokens = $this->setSemanticsColumnApply( $this->parser->tokens );
   }
 
-  // public function resolveExprWhereLogical(
-  //   ExpLogical $expr
-  // ): string {
-  //   return $expr->value;
-  // }
-
   public function resolveExprFieldMethodArr(
     ExpField|ExpMethod $expr
   ): array {
@@ -838,186 +817,6 @@ extends ParserUtils
     } else return "table.field";
   }  
 
-  public function changeEnumValue(
-    string $enum,
-    string $case,
-    string|null $property = null,
-    array $uses = []
-  ): array {
-    $use = $uses[$enum] ?? null;
-
-    if( $use ){
-      $constantEnum = "{$use}::{$case}";
-      if( defined( $constantEnum )){
-        $constantEnum = constant( $constantEnum );
-        return [
-          $property !== null
-            ? new ExpToken(
-                T_STRING, $property === "name" 
-                  ? $constantEnum->name 
-                  : $constantEnum->value, 
-                      TokenName::get( T_STRING )
-              )
-            : new ExpToken(
-                T_STRING, 
-                $constantEnum->value,
-                TokenName::get( T_STRING )
-              )
-        ];
-      }
-    } 
-
-    return [];
-  }
-  
-  private function isWithProperty(
-    array $values
-  ): bool {
-    if( sizeof( $values ) < 5 ){
-      return false;
-    }
-
-    if( sizeof( $values ) === 5 ){
-      return $values[0]->key === T_STRING
-          && $values[1]->key === T_DOUBLE_COLON
-          && $values[2]->key === T_STRING
-          && $values[3]->key === T_OBJECT_OPERATOR
-          && $values[4]->key === T_STRING;
-    }
-
-    return false;
-  }  
-
-  private function isNotProperty(
-    array $values
-  ): bool {
-    if( sizeof( $values ) < 3 ){
-      return false;
-    }
-
-    if( sizeof( $values ) === 3 ){
-      return $values[0]->key === T_STRING
-          && $values[1]->key === T_DOUBLE_COLON
-          && $values[2]->key === T_STRING;
-    }
-
-    return false;
-  }  
-
-  public function enumToStatic(
-    array $values
-  ): array {
-    for($i=0; $i<count($values); $i++){
-      $withProperty = $this->slice( $values, $i, 5 );
-      $notProperty = $this->slice( $values, $i, 3 );
-
-      $isWithProperty = $this->isWithProperty( $withProperty );
-      $isNotProperty = $this->isNotProperty( $notProperty );
-
-      if( $isWithProperty ){
-        $result = $this->changeEnumValue(
-          $withProperty[0]->value,
-          $withProperty[2]->value,
-          $withProperty[4]->value,
-          $this->parser->uses
-        );
-        if( !empty( $result ) ){
-          $values[$i] = $result[0]; // changeEnumValue returns [ ExpToken ]
-          array_splice( $values, $i + 1, 4 );
-        }
-      } else if( $isNotProperty ){
-        $result = $this->changeEnumValue(
-          $withProperty[0]->value,
-          $withProperty[2]->value,
-          null,
-          $this->parser->uses
-        );
-        if( !empty( $result ) ){
-          $values[$i] = $result[0]; // changeEnumValue returns [ ExpToken ]
-          array_splice( $values, $i + 1, 2 );
-        }
-      }      
-    };
-
-    return $values;
-  } 
-
-  public function resolveParams(
-    array $tokens,
-    mixed $expr,
-    string $type,
-    ExpressionType $exprType
-  ): string {
-    if( $expr === ExpIn::class || $expr === ExpNotIn::class ){
-      $this->mapper( $tokens, function( ExpToken $expToken ) use( $type, $exprType ){
-        if( in_array( $expToken->key, [ T_START_PARENTESES, T_END_PARENTESES, T_COMMA ]) === false){
-          $this->parserParams[] = $exprType->encode( $expToken->value, $type );
-            $expToken->value = "?";
-        }
-
-        return $expToken;
-      });
-
-      return implode( "", $this->mapper( $tokens, fn( ExpToken $expToken ) => $expToken->value ));
-    } else {
-      $this->parserParams[] = $exprType->encode(
-        implode( "", $this->mapper( $tokens, fn( ExpToken $expToken ) => $expToken->value )), $type
-      );
-
-      return "?";
-    }
-  }  
-
-  public function variableToStatic(
-    array $tokens = [],
-    array $statics = []
-  ): array {
-    for( $i=0; $i < count($tokens); $i++ ){
-      if( $tokens[$i] instanceof ExpToken ){
-        $value = $tokens[$i]->value;
-
-        if( is_array( $statics )){
-          $staticValue = $statics[
-            trim( $value, "$\"" )
-          ] ?? null;
-        } else
-        if( is_object( $statics )){
-          $staticValue = $statics->{
-            trim( $value, "$\"" )
-          } ?? null;
-        }
-
-        if( $staticValue !== null ){
-          if( is_string( $staticValue )){
-            $tokens[$i]->value = $staticValue;
-          } else
-          if( is_numeric( $staticValue )){
-              $tokens[$i]->value = (string)$staticValue;
-          } else
-          if( is_object( $staticValue )){
-            $statics = $staticValue;
-            array_splice( $tokens, $i, 2 ); $i--;
-          } else
-          if( is_array( $staticValue )){
-            $statics = $staticValue;
-            $tokensOuts = array_splice( $tokens, $i, 4 );
-            array_splice( $tokens, $i, 0, [ $tokensOuts[ 2 ]]); $i--;
-          }
-        }
-      }   
-    }
-
-    return $tokens;
-  }  
-
-  public function resolveExprValue(
-    array $tokens
-  ): array {
-    $tokens = $this->variableToStatic( $tokens, $this->parser->staticVariables );
-    $tokens = $this->enumToStatic( $tokens );
-    return $tokens;
-  }   
-  
   private function setClearVariables(
   ): void {
     unset( $this->repository, $this->abstractScriptDialect );

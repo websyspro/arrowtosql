@@ -6,7 +6,7 @@ class ExpValue
 extends AbstractExpType
 {
   public function __construct(
-    public array $childs = []
+    public string $value
   ){
     parent::__construct();
   }  

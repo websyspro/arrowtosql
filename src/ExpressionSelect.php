@@ -252,7 +252,7 @@ extends ParserUtils
     return $expr->columnType === EntityList::class && !empty( $expr->closures );
   }
 
-  private function resolveSubQuery(
+  private function createAstSubQuery(
     ExpField $expr
   ): ExpSelectSubQuery|null {
     if( $this->isMethodSubQuery( $expr ) ){
@@ -261,32 +261,36 @@ extends ParserUtils
         $this->parser->uses, $this->parser->scopes, $this->parser->getClosure()
       );
 
-      [ $scopeWheres ] = ParserUtils::where(
-        $expr->closures, fn( ExpFieldMethod $expFieldMethod ) => (
-          $expFieldMethod->name === MethodList::Where->value
-        )
-      );
-
-      [ $scopeSelect ] = ParserUtils::where(
-        $expr->closures, fn( ExpFieldMethod $expFieldMethod ) => (
-          $expFieldMethod->name === MethodList::Select->value
-        )
-      );
-
-      $repositoryInRuntime
-        ->setWheres( $scopeWheres->args )
-        ->setSelect( $scopeSelect->args );
-
-      return new ExpSelectSubQuery(
-        $expr->table,
-        $expr->column,
-        $this->resolveColumnAs( $expr ),
-        $expr->table,
-        $repositoryInRuntime
+      $closuresExtras = ParserUtils::where(
+        $expr->closures, fn( ExpFieldMethod $expFieldMethod ) => in_array(
+          $expFieldMethod->descriptor, [ MethodList::Select->value, MethodList::Where->value ]
+        ) === false
       );      
-    }
 
-    return null;
+      $scopeWheres = ParserUtils::where(
+        $expr->closures, fn( ExpFieldMethod $expFieldMethod ) => (
+          $expFieldMethod->descriptor === MethodList::Where->value
+        )
+      );
+
+      if( empty( $scopeWheres ) === false ){
+        [ $scopeWhere ] = $scopeWheres;
+        $repositoryInRuntime->setWheres( $scopeWhere->args );
+      }
+
+      $scopeSelects = ParserUtils::where(
+        $expr->closures, fn( ExpFieldMethod $expFieldMethod ) => (
+          $expFieldMethod->descriptor === MethodList::Select->value
+        )
+      );
+
+      if( empty( $scopeSelects ) === false ){
+        [ $scopeSelect ] = $scopeSelects;
+        $repositoryInRuntime->setSelect( $scopeSelect->args );
+      }
+
+      return new ExpSelectSubQuery( $closuresExtras, $repositoryInRuntime );      
+    } else return null;
   }
   
   private function resolveExprColumnField(
@@ -294,7 +298,7 @@ extends ParserUtils
     bool $depth = false
   ): ExpSelectColumn|ExpSelectSubQuery {
     if( $this->isMethodSubQuery( $expr )){
-      return $this->resolveSubQuery( $expr );
+      return $this->createAstSubQuery( $expr );
     } else return $this->resolveExprField( $expr, $depth );
   }
   

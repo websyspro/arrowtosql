@@ -8,7 +8,7 @@ class ExpFieldMethod
 extends AbstractExpType
 {
   public function __construct(
-    public string $name,
+    public string $descriptor,
     public MethodType $type,
     public array $args = []
   ){

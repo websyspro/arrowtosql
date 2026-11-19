@@ -72,6 +72,19 @@ class ParserUtils
     return $result;
   }
 
+  public static function mapperStatic(
+    array $items,
+    Closure $closure
+  ): array {
+    $result = [];
+
+    foreach( $items as $key => $item ){
+      $result[$key] = $closure($item, $key);
+    }
+
+    return $result;
+  }  
+
   public function filter(
     array $items,
     Closure $closure
@@ -279,6 +292,41 @@ class ParserUtils
     return $accu;
   }
 
+  public static function groupByTypesStatic(
+    array $type,
+    array $tokens,
+     bool $showKey = false,
+    array $curr = [],
+    array $accu = [],
+      int $depth = 0
+  ): array {
+    foreach( $tokens as $token ){
+      if( in_array( $token->key, $type ) && $depth === 0){
+        if( $curr ){
+          $accu[] = $curr;
+          $curr = [];
+        } 
+        
+        if( $showKey ){
+          $accu[] = [ $token ];
+        }
+
+        continue;
+      }
+
+      $curr[] = $token;
+
+      if($token->key === T_START_PARENTESES) $depth++;
+      if($token->key === T_END_PARENTESES) $depth--;
+    }
+
+    if( $curr ){
+      $accu[] = $curr;
+    }
+
+    return $accu;
+  }  
+
   public function groupByTypesLogical(
     array $tokens = []
   ): array {
@@ -379,7 +427,7 @@ class ParserUtils
     string $column,
     ExpFieldMethod $method
   ): string {
-    return match( $method->name ){
+    return match( $method->descriptor ){
       MethodList::ToDate->value => ScriptDialect::get()->resolveMethodToDate( $column ),
       MethodList::Upper->value => ScriptDialect::get()->resolveMethodToUpper( $column ),
       MethodList::Lower->value => ScriptDialect::get()->resolveMethodToLower( $column ),
