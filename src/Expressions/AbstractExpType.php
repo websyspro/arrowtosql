@@ -12,4 +12,9 @@ class AbstractExpType
       str_replace( "\\", "/", static::class)
     );
   }
+
+  public function get(
+  ): string {
+    return $this->object;
+  }
 }

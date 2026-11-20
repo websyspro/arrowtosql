@@ -14,13 +14,16 @@ use Closure;
 
 class Repository
 {
-  public array $whereDetails;
-  private static array $cacheES = [];
-  public ExpressionWhere $expressionWhere;
-  public ExpressionSelect $expressionSelect;
-
+  protected static array $cacheES = [];
+  protected array $expressionIncludes = [];
+  protected ExpressionRelationship $expressionRelationship;
+  protected ExpressionWhere $expressionWhere;
+  protected ExpressionSelect $expressionSelect;
+  public SelectBuilder $selectBuilder;
+  public WhereBuilder $whereBuilder;
+  
   public function __construct(
-    public string $entity
+    protected string $entity
   ){}
 
   public function getEntityStructureMatch(
@@ -70,13 +73,27 @@ class Repository
   private function definePrimaryKey(
   ): string {
     return $this->getEntityStructure()->getPrimaryKey();
-  }  
+  }
+  
+  public function include(
+    mixed ...$closuresOfIncludes
+  ): Repository {
+    $this->expressionIncludes = ParserUtils::mapperStatic(
+      $closuresOfIncludes, fn( Closure $closure ) => (
+        ParserUtils::createRepositoryInRuntimeFromIncludes(
+          new Parser($closure, [], []), $this
+        )
+      )
+    );
+
+    return $this;
+  }
 
   public function where(
     Closure $closure
   ): Repository {
     $this->expressionWhere = new ExpressionWhere(
-      new Parser( $closure, [], [] ), $this
+      new Parser($closure, [], []), $this
     );
 
     return $this;
@@ -86,29 +103,19 @@ class Repository
     Closure $closure
   ): Repository {
     $this->expressionSelect = new ExpressionSelect(
-      new Parser( $closure, [], [] ), $this
+      new Parser($closure, [], []), $this
     );
 
     return $this;
   }
-  
-  public static function inRuntime(
-    string $entity,
-    Parser $parserWhere
+
+  public function buildSql(
   ): Repository {
-    $repo = new static( $entity );
-    
-    if( $parserWhere !== null ){
-      $repo->expressionWhere = new ExpressionWhere( $parserWhere, $repo );
-    }
-
-    // if( $parserSelect !== null ){
-    //   $repo->expressionSelect = new ExpressionSelect( $parserSelect, $repo );
-    // }    
-
-    return $repo;
+    $this->selectBuilder = SelectBuilder::buildSql( $this->expressionSelect );
+    $this->whereBuilder = WhereBuilder::buildSql( $this->expressionWhere );
+    return $this;
   }
-
+  
   public function rows(
   ): mixed {
     return $this;

@@ -810,11 +810,16 @@ extends ParserUtils
 
       return $column;      
     } else return "table.field";
-  }  
+  }
 
   private function setClearVariables(
   ): void {
     unset( $this->repository, $this->abstractScriptDialect );
     unset( $this->parser );
-  }  
+  }
+
+  public function get(
+  ): string {
+    return WhereBuilder::build( $this );
+  }
 }

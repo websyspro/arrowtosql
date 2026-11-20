@@ -40,7 +40,12 @@ extends ParserUtils
 
   public function getClosure(
   ): Closure {
-    return $this->closureOrArray;
+    if( $this->closureOrArray instanceof Closure ){
+      return $this->closureOrArray;
+    }
+    
+    // Se for array, retorna o parentClosure
+    return $this->parentClosure;
   }
 
   private function setExpressionType(

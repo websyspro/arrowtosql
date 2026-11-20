@@ -10,4 +10,9 @@ extends AbstractExpType
   ){
     parent::__construct();
   }
+
+  public function get(
+  ): string {
+    return ","; 
+  }
 }

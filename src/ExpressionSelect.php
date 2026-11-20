@@ -20,8 +20,6 @@ use Websyspro\ArrowToSql\Expressions\ExpSelectSum;
 use Websyspro\ArrowToSql\Expressions\ExpSeparator;
 use Websyspro\Entity\Decorators\EntityList;
 
-use function is_array;
-use function sprintf;
 use function sizeof;
 
 class ExpressionSelect
@@ -275,7 +273,7 @@ extends ParserUtils
 
       if( empty( $scopeWheres ) === false ){
         [ $scopeWhere ] = $scopeWheres;
-        $repositoryInRuntime->setWheres( $scopeWhere->args );
+        $repositoryInRuntime->registerWheres( $scopeWhere->args );
       }
 
       $scopeSelects = ParserUtils::where(
@@ -286,7 +284,7 @@ extends ParserUtils
 
       if( empty( $scopeSelects ) === false ){
         [ $scopeSelect ] = $scopeSelects;
-        $repositoryInRuntime->setSelect( $scopeSelect->args );
+        $repositoryInRuntime->registerSelect( $scopeSelect->args );
       }
 
       return new ExpSelectSubQuery( $closuresExtras, $repositoryInRuntime );      
@@ -373,5 +371,10 @@ extends ParserUtils
   ): void {
     unset( $this->repository, $this->abstractScriptDialect );
     unset( $this->parser );
-  }  
+  }
+
+  public function get(
+  ): string {
+    return SelectBuilder::build( $this );
+  }
 }

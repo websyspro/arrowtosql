@@ -648,4 +648,33 @@ class ParserUtils
       $columnMethods
     );
   }
+
+  public static function createRepositoryInRuntimeFromIncludes(
+    Parser $parser,
+    Repository $repository
+  ): RepositoryInRuntime|null {
+    if( sizeof( $parser->tokens ) < 3 ){
+      return null;
+    }
+
+    [ $propertyFromTokens ] = ParserUtils::sliceStatic( $parser->tokens, 2, 1 );
+    if( $propertyFromTokens && $propertyFromTokens instanceof ExpToken ){
+      $entityToRepository = $repository->getEntityStructure()->typesAlls->items[ $propertyFromTokens->value ];
+      if( $entityToRepository === EntityList::class ){
+        $entityToRepository = $repository->getEntityStructure()->entityLists->items[ $propertyFromTokens->value ];
+      }
+    }
+
+    $repositoryInRuntime = new RepositoryInRuntime($entityToRepository, $parser->uses, $parser->scopes, $parser->getClosure());
+    $repositoryInRuntimeWhereTokens = ParserUtils::extractTokensFromStr( "where", $parser->tokens );
+    $repositoryInRuntimeSelectTokens = ParserUtils::extractTokensFromStr( "select", $parser->tokens );
+    $repositoryInRuntimeIncludesTokens = ParserUtils::groupByTypesStatic( [ T_COMMA ], ParserUtils::extractTokensFromStr( "include", $parser->tokens ));
+
+    if( !empty( $repositoryInRuntimeWhereTokens )) $repositoryInRuntime->registerWheres( $repositoryInRuntimeWhereTokens );
+    if( !empty( $repositoryInRuntimeSelectTokens )) $repositoryInRuntime->registerSelect( $repositoryInRuntimeSelectTokens );
+    if( !empty( $repositoryInRuntimeIncludesTokens )) $repositoryInRuntime->registerIncludes( $repositoryInRuntimeIncludesTokens );
+      
+    $repositoryInRuntime->registerRelationship( $repository );
+    return $repositoryInRuntime;
+  }
 }

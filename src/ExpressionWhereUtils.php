@@ -13,7 +13,6 @@ use Websyspro\ArrowToSql\Expressions\ExpToken;
 use Websyspro\ArrowToSql\Expressions\ExpValue;
 use Websyspro\Entity\Decorators\EntityList;
 use function in_array;
-use function sizeof;
 use Exception;
 use Closure;
 
@@ -65,7 +64,7 @@ class ExpressionWhereUtils
   ): RepositoryInRuntime {
     [ $scope, $scopeWheres ] = $tokens;
     $repositoryInRuntime = new RepositoryInRuntime( $uses[$scope], $uses, $scopes, $closure );
-    $repositoryInRuntime->setWheres( $scopeWheres );
+    $repositoryInRuntime->registerWheres( $scopeWheres );
     return $repositoryInRuntime;
   }
 

@@ -4,6 +4,7 @@ namespace Websyspro\ArrowToSql;
 
 use Closure;
 use Websyspro\ArrowToSql\Expressions\ExpFieldMethod;
+use Websyspro\ArrowToSql\Interfaces\JoinDetail;
 
 class RepositoryInRuntime
 extends Repository
@@ -29,13 +30,21 @@ extends Repository
     }
 
     return -1;
+  } 
+  
+  public function registerRelationship(
+    Repository $repositoryParent
+  ): RepositoryInRuntime {
+    $this->expressionRelationship = new ExpressionRelationship(
+      $this, $repositoryParent
+    );
+
+    return $this;
   }  
 
-  public function setWheres(
+  public function registerWheres(
     array $tokens = []
   ): RepositoryInRuntime {
-
-
     $this->expressionWhere = new ExpressionWhere(
       new Parser( $tokens, $this->uses, $this->scopes, $this->closure ), $this
     );    
@@ -43,7 +52,7 @@ extends Repository
     return $this;
   }
 
-  public function setSelect(
+  public function registerSelect(
     array $tokens = []
   ): RepositoryInRuntime {
     $this->expressionSelect = new ExpressionSelect(
@@ -51,5 +60,19 @@ extends Repository
     );    
 
     return $this;
-  }  
+  }
+  
+  public function registerIncludes(
+    array $closuresOfIncludes = []
+  ): RepositoryInRuntime {
+    $this->expressionIncludes = ParserUtils::mapperStatic(
+      $closuresOfIncludes, fn( array $closure ) => (
+        ParserUtils::createRepositoryInRuntimeFromIncludes(
+          new Parser( $closure, $this->uses, $this->scopes, $this->closure ), $this
+        )
+      )
+    );    
+
+    return $this;
+  }
 }
